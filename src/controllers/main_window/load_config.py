@@ -2,6 +2,7 @@ import os
 import platform
 import re
 import traceback
+import typing
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
@@ -17,8 +18,11 @@ from models.core.utils import get_movie_path_setting
 from models.core.web import check_proxyChange
 from models.signals import signal
 
+if typing.TYPE_CHECKING:
+    from main import MyMAinWindow
 
-def load_config(self):
+
+def load_config(self: "MyMAinWindow"):
     config.read_config()
     config_folder = config.folder
     config_file = config.file

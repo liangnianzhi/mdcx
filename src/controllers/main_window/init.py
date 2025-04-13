@@ -1,4 +1,5 @@
 import traceback
+import typing
 import webbrowser
 
 from PyQt5.QtCore import Qt
@@ -11,8 +12,11 @@ from models.core.flags import Flags
 from models.core.utils import get_movie_path_setting
 from models.signals import signal
 
+if typing.TYPE_CHECKING:
+    from main import MyMAinWindow
 
-def Init_Ui(self):
+
+def Init_Ui(self: "MyMAinWindow"):
     self.setWindowTitle("MDCx")  # 设置任务栏标题
     self.setWindowIcon(QIcon(resources.icon_ico))  # 设置任务栏图标
     self.setWindowOpacity(1.0)  # 设置窗口透明度
@@ -113,7 +117,7 @@ def Init_Ui(self):
     self.Ui.widget_nfo.hide()
 
 
-def Init_Singal(self):
+def Init_Singal(self: "MyMAinWindow"):
     # region 外部信号量连接
     signal.log_text.connect(self.show_log_text)  # 可视化日志输出
     signal.scrape_info.connect(self.show_scrape_info)  # 可视化日志输出
@@ -278,7 +282,7 @@ def Init_Singal(self):
     self.label_show_version.connect(self.Ui.label_show_version.setText)  # endregion
 
 
-def Init_QSystemTrayIcon(self):
+def Init_QSystemTrayIcon(self: "MyMAinWindow"):
     self.tray_icon = QSystemTrayIcon(self)
     self.tray_icon.setIcon(QIcon(resources.icon_ico))
     self.tray_icon.activated.connect(self.tray_icon_click)
@@ -300,12 +304,10 @@ def Init_QSystemTrayIcon(self):
     # icon的值  0没有图标  1是提示  2是警告  3是错误
 
 
-def init_QTreeWidget(self):
+def init_QTreeWidget(self: "MyMAinWindow"):
     # 初始化树状控件
     try:
-        self.set_label_file_path.emit(
-            f"🎈 当前刮削路径: \n {get_movie_path_setting()[0]}"
-        )  # 主界面右上角显示提示信息
+        self.set_label_file_path.emit(f"🎈 当前刮削路径: \n {get_movie_path_setting()[0]}")  # 主界面右上角显示提示信息
     except:
         signal.show_traceback_log(traceback.format_exc())
     signal.add_label_info("")

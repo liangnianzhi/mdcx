@@ -2,6 +2,7 @@ import os
 import platform
 import re
 import traceback
+import typing
 
 from PyQt5.QtCore import Qt
 
@@ -14,8 +15,11 @@ from models.core.web import check_proxyChange
 from models.signals import signal
 from models.tools.actress_db import ActressDB
 
+if typing.TYPE_CHECKING:
+    from main import MyMAinWindow
 
-def save_config(self):
+
+def save_config(self: "MyMAinWindow"):
     # region media & escape
     config.media_path = self.Ui.lineEdit_movie_path.text()  # 待刮削目录
     config.softlink_path = self.Ui.lineEdit_movie_softlink_path.text()  # 软链接目录目录
@@ -944,8 +948,6 @@ def save_config(self):
     self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
     self.activateWindow()
     try:
-        self.set_label_file_path.emit(
-            f"🎈 当前刮削路径: \n {get_movie_path_setting()[0]}"
-        )  # 主界面右上角显示提示信息
+        self.set_label_file_path.emit(f"🎈 当前刮削路径: \n {get_movie_path_setting()[0]}")  # 主界面右上角显示提示信息
     except:
         signal.show_traceback_log(traceback.format_exc())
