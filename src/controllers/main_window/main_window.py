@@ -25,17 +25,11 @@ from controllers.main_window.init import Init_QSystemTrayIcon, Init_Singal, Init
 from controllers.main_window.load_config import load_config
 from controllers.main_window.save_config import save_config
 from controllers.main_window.style import set_dark_style, set_style
-from models.base.file import _open_file_thread, delete_file, split_path
+from models.base.file import delete_file, open_file_thread, split_path
 from models.base.image import get_pixmap
 from models.base.path import get_main_path, get_path
 from models.base.utils import _async_raise, add_html, convert_path, get_current_time, get_used_time, kill_a_thread
-from models.base.web import (
-    check_theporndb_api_token,
-    check_version,
-    get_avsox_domain,
-    ping_host,
-    scraper_html,
-)
+from models.base.web import check_theporndb_api_token, check_version, get_avsox_domain, ping_host, scraper_html
 from models.config.config import config
 from models.config.resources import resources
 from models.core.file import (
@@ -1092,7 +1086,7 @@ class MyMAinWindow(QMainWindow):
             #     self.setWindowFlags(self.windowFlags() | Qt.WindowDoesNotAcceptFocus)
             #     self.show()
             # 启动线程打开文件
-            t = threading.Thread(target=_open_file_thread, args=(self.file_main_open_path, False))
+            t = threading.Thread(target=open_file_thread, args=(self.file_main_open_path, False))
             t.start()
 
     def main_open_folder_click(self):
@@ -1109,7 +1103,7 @@ class MyMAinWindow(QMainWindow):
             #     self.setWindowFlags(self.windowFlags() | Qt.WindowDoesNotAcceptFocus)
             #     self.show()
             # 启动线程打开文件
-            t = threading.Thread(target=_open_file_thread, args=(self.file_main_open_path, True))
+            t = threading.Thread(target=open_file_thread, args=(self.file_main_open_path, True))
             t.start()
 
     def main_open_nfo_click(self):

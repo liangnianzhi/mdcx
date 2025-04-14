@@ -101,10 +101,7 @@ def check_pic(path_pic: str):
     return False
 
 
-def _open_file_thread(
-    file_path: str,
-    is_dir: bool,
-):
+def open_file_thread(file_path: str, is_dir: bool):
     if config.is_windows:
         if is_dir:
             # os.system(f'explorer /select,"{file_path}"')  pyinstall打包后打开文件时会闪现cmd窗口。

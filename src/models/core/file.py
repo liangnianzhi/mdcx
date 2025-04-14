@@ -1580,7 +1580,7 @@ def get_movie_list(file_mode: FileMode, movie_path: str, escape_folder_list: lis
     return movie_list
 
 
-def _clean_empty_fodlers(path: str, file_mode: FileMode) -> None:
+def clean_empty_fodlers(path: str, file_mode: FileMode) -> None:
     start_time = time.time()
     if config.del_empty_folder == 0 or file_mode == FileMode.Again:
         return
@@ -2113,7 +2113,7 @@ def check_and_clean_files() -> None:
                     signal.show_log_text(f" 🗑 Clean error: {error_info} ")
     signal.show_log_text(f" 🍀 Clean done!({get_used_time(start_time)}s)")
     signal.show_log_text("================================================================================")
-    _clean_empty_fodlers(movie_path, FileMode.Default)
+    clean_empty_fodlers(movie_path, FileMode.Default)
     signal.set_label_file_path.emit("🗑 清理完成！")
     signal.show_log_text(
         f" 🎉🎉🎉 All finished!!!({get_used_time(start_time)}s) Total {total} , Success {succ} , Failed {fail} "

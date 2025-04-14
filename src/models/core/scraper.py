@@ -15,8 +15,8 @@ from models.config.config import config
 from models.config.resources import resources
 from models.core.crawler import crawl
 from models.core.file import (
-    _clean_empty_fodlers,
     check_file,
+    clean_empty_fodlers,
     copy_trailer_to_theme_videos,
     creat_folder,
     deal_old_files,
@@ -250,6 +250,7 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
             if "sort_del" in config.switch_on:
                 deal_old_files(
                     json_data,
+                    json_data["number"],
                     folder_old_path,
                     folder_new_path,
                     file_path,
@@ -272,6 +273,7 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
     # 清理旧的thumb、poster、fanart、extrafanart、nfo
     pic_final_catched, single_folder_catched = deal_old_files(
         json_data,
+        json_data["number"],
         folder_old_path,
         folder_new_path,
         file_path,
@@ -342,7 +344,7 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
         move_sub(folder_old_path, folder_new_path, file_name, sub_list, naming_rule)
     move_torrent(folder_old_path, folder_new_path, file_name, movie_number, naming_rule)
     move_bif(folder_old_path, folder_new_path, file_name, naming_rule)
-    # self.move_trailer_video(json_data, folder_old_path, folder_new_path, file_name, naming_rule)
+    # self.move_trailer_video(folder_old_path, folder_new_path, file_name, naming_rule)
     move_other_file(json_data["number"], folder_old_path, folder_new_path, file_name, naming_rule)
 
     # 移动文件
@@ -655,7 +657,7 @@ def scrape(file_mode: FileMode, movie_list: Optional[list[str]]) -> None:
             return
 
     signal.show_log_text("================================================================================")
-    _clean_empty_fodlers(movie_path, file_mode)
+    clean_empty_fodlers(movie_path, file_mode)
     end_time = time.time()
     used_time = str(round((end_time - Flags.start_time), 2))
     if count_all:
