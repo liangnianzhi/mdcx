@@ -1,13 +1,14 @@
 import os
 import time
 import traceback
+from typing import Optional
 
 from PIL import Image, ImageFilter
 from PyQt5.QtGui import QImageReader, QPixmap
 
 from models.base.file import check_pic, copy_file, delete_file
 from models.base.utils import get_used_time
-from models.core.json_data import JsonData, LogBuffer
+from models.core.json_data import LogBuffer
 from models.signals import signal
 
 
@@ -64,12 +65,7 @@ def fix_size(path: str, naming_rule: str):
         signal.show_log_text(f"{traceback.format_exc()}\n Pic: {poster_path}")
 
 
-def cut_thumb_to_poster(
-    json_data: JsonData,
-    thumb_path: str,
-    poster_path: str,
-    image_cut="",
-):
+def cut_thumb_to_poster(thumb_path: str, poster_path: str, image_cut="") -> tuple[bool, Optional[str]]:
     start_time = time.time()
     if os.path.exists(poster_path):
         delete_file(poster_path)
@@ -79,7 +75,7 @@ def cut_thumb_to_poster(
         img = Image.open(thumb_path)  # 返回一个Image对象
     except:
         signal.show_log_text(f"{traceback.format_exc()}\n Pic: {thumb_path}")
-        return False
+        return False, None
 
     w, h = img.size
     prop = h / w
@@ -97,13 +93,13 @@ def cut_thumb_to_poster(
     if image_cut == "no":
         copy_file(thumb_path, poster_path)
         LogBuffer.log().write(f"\n 🍀 Poster done! (copy thumb)({get_used_time(start_time)}s)")
-        json_data["poster_from"] = "copy thumb"
+        poster_from = "copy thumb"
         img.close()
-        return True
+        return True, poster_from
 
     # 中间裁剪
     elif image_cut == "center":
-        json_data["poster_from"] = "thumb center"
+        poster_from = "thumb center"
         ax = int((w - h / 1.5) / 2)
         ay = 0
         bx = ax + int(h / 1.5)
@@ -111,7 +107,7 @@ def cut_thumb_to_poster(
 
     # 右边裁剪
     else:
-        json_data["poster_from"] = "thumb right"
+        poster_from = "thumb right"
         ax, ay, bx, by = w / 1.9, 0, w, h
         if w == 800:
             if h == 439:
@@ -131,16 +127,14 @@ def cut_thumb_to_poster(
         img_new_png.save(poster_path, quality=95, subsampling=0)
         img.close()
         if check_pic(poster_path):
-            LogBuffer.log().write(f"\n 🍀 Poster done! ({json_data['poster_from']})({get_used_time(start_time)}s)")
-            return True
-        LogBuffer.log().write(f"\n 🥺 Poster cut failed! ({json_data['poster_from']})({get_used_time(start_time)}s)")
+            LogBuffer.log().write(f"\n 🍀 Poster done! ({poster_from})({get_used_time(start_time)}s)")
+            return True, poster_from
+        LogBuffer.log().write(f"\n 🥺 Poster cut failed! ({poster_from})({get_used_time(start_time)}s)")
     except Exception as e:
-        LogBuffer.log().write(
-            f"\n 🥺 Poster failed! ({json_data['poster_from']})({get_used_time(start_time)}s)\n    {str(e)}"
-        )
+        LogBuffer.log().write(f"\n 🥺 Poster failed! ({poster_from})({get_used_time(start_time)}s)\n    {str(e)}")
         signal.show_traceback_log(traceback.format_exc())
         signal.show_log_text(traceback.format_exc())
-    return False
+    return False, poster_from
 
 
 def cut_pic(pic_path: str):

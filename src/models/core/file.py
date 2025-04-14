@@ -211,7 +211,7 @@ def move_trailer_video(
             LogBuffer.log().write("\n 🍀 Trailer done!")
 
 
-def move_bif(json_data: JsonData, folder_old_path: str, folder_new_path: str, file_name: str, naming_rule: str) -> None:
+def move_bif(folder_old_path: str, folder_new_path: str, file_name: str, naming_rule: str) -> None:
     # 更新模式 或 读取模式
     if config.main_mode == 3 or config.main_mode == 4:
         if config.update_mode == "c" and config.success_file_rename == 0:
@@ -227,7 +227,7 @@ def move_bif(json_data: JsonData, folder_old_path: str, folder_new_path: str, fi
 
 
 def move_torrent(
-    json_data: JsonData, folder_old_path: str, folder_new_path: str, file_name: str, movie_number: str, naming_rule: str
+    folder_old_path: str, folder_new_path: str, file_name: str, movie_number: str, naming_rule: str
 ) -> None:
     # 更新模式 或 读取模式
     if config.main_mode == 3 or config.main_mode == 4:
@@ -287,7 +287,7 @@ def check_file(json_data: JsonData, file_path: str, file_escape_size: float) -> 
     return True, json_data
 
 
-def copy_trailer_to_theme_videos(json_data: JsonData, folder_new_path: str, naming_rule: str) -> None:
+def copy_trailer_to_theme_videos(folder_new_path: str, naming_rule: str) -> None:
     start_time = time.time()
     download_files = config.download_files
     keep_files = config.keep_files
@@ -336,9 +336,7 @@ def copy_trailer_to_theme_videos(json_data: JsonData, folder_new_path: str, nami
         LogBuffer.log().write("\n 🍀 Trailer delete done!")
 
 
-def move_other_file(
-    json_data: JsonData, folder_old_path: str, folder_new_path: str, file_name: str, naming_rule: str
-) -> None:
+def move_other_file(number: str, folder_old_path: str, folder_new_path: str, file_name: str, naming_rule: str) -> None:
     # 软硬链接模式不移动
     if config.soft_link != 0:
         return
@@ -359,7 +357,7 @@ def move_other_file(
     for old_file in files:
         if os.path.splitext(old_file)[1].lower() in config.media_type:
             continue
-        if json_data["number"] in old_file or file_name in old_file or naming_rule in old_file:
+        if number in old_file or file_name in old_file or naming_rule in old_file:
             if "-cd" not in old_file.lower():  # 避免多分集时，其他分级的内容被移走
                 old_file_old_path = os.path.join(folder_old_path, old_file)
                 old_file_new_path = os.path.join(folder_new_path, old_file)
@@ -2030,16 +2028,16 @@ def deal_old_files(
     return pic_final_catched, single_folder_catched
 
 
-def _pic_some_deal(json_data: JsonData, thumb_final_path: str, fanart_final_path: str) -> None:
+def pic_some_deal(number: str, thumb_final_path: str, fanart_final_path: str) -> None:
     """
     thumb、poster、fanart 删除冗余的图片
     """
     # 不保存thumb时，清理 thumb
     if "thumb" not in config.download_files and "thumb" not in config.keep_files:
         if os.path.exists(fanart_final_path):
-            Flags.file_done_dic[json_data["number"]].update({"thumb": fanart_final_path})
+            Flags.file_done_dic[number].update({"thumb": fanart_final_path})
         else:
-            Flags.file_done_dic[json_data["number"]].update({"thumb": ""})
+            Flags.file_done_dic[number].update({"thumb": ""})
         if os.path.exists(thumb_final_path):
             delete_file(thumb_final_path)
             LogBuffer.log().write("\n 🍀 Thumb delete done!")

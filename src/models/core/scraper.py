@@ -16,7 +16,6 @@ from models.config.resources import resources
 from models.core.crawler import crawl
 from models.core.file import (
     _clean_empty_fodlers,
-    _pic_some_deal,
     check_file,
     copy_trailer_to_theme_videos,
     creat_folder,
@@ -30,6 +29,7 @@ from models.core.file import (
     move_other_file,
     move_torrent,
     newtdisk_creat_symlink,
+    pic_some_deal,
     save_success_list,
 )
 from models.core.flags import Flags
@@ -301,31 +301,49 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
                 return False, json_data  # 返回MDCx1_1main, 继续处理下一个文件
 
             # 清理冗余图片
-            _pic_some_deal(json_data, thumb_final_path, fanart_final_path)
+            pic_some_deal(json_data["number"], thumb_final_path, fanart_final_path)
 
             # 加水印
-            add_mark(json_data, json_data["poster_marked"], json_data["thumb_marked"], json_data["fanart_marked"])
+            add_mark(
+                json_data["has_sub"],
+                json_data["mosaic"],
+                json_data["definition"],
+                json_data["poster_path"],
+                json_data["thumb_path"],
+                json_data["fanart_path"],
+                json_data["poster_marked"],
+                json_data["thumb_marked"],
+                json_data["fanart_marked"],
+            )
 
             # 下载剧照和剧照副本
             if single_folder_catched:
-                extrafanart_download(json_data, folder_new_path)
-                extrafanart_copy2(json_data, folder_new_path)
-                extrafanart_extras_copy(json_data, folder_new_path)
+                extrafanart_download(json_data["extrafanart"], json_data["extrafanart_from"], folder_new_path)
+                extrafanart_copy2(folder_new_path)
+                extrafanart_extras_copy(folder_new_path)
 
             # 下载trailer、复制主题视频
             # 因为 trailer也有带文件名，不带文件名两种情况，不能使用pic_final_catched。比如图片不带文件名，trailer带文件名这种场景需要支持每个分集去下载trailer
-            trailer_download(json_data, folder_new_path, folder_old_path, naming_rule)
-            copy_trailer_to_theme_videos(json_data, folder_new_path, naming_rule)
+            trailer_download(
+                json_data["number"],
+                json_data["trailer"],
+                json_data["trailer_from"],
+                folder_new_path,
+                folder_old_path,
+                naming_rule,
+            )
+            copy_trailer_to_theme_videos(folder_new_path, naming_rule)
 
     # 生成nfo文件
     write_nfo(json_data, nfo_new_path, folder_new_path, file_path)
 
     # 移动字幕、种子、bif、trailer、其他文件
-    move_sub(json_data, folder_old_path, folder_new_path, file_name, sub_list, naming_rule)
-    move_torrent(json_data, folder_old_path, folder_new_path, file_name, movie_number, naming_rule)
-    move_bif(json_data, folder_old_path, folder_new_path, file_name, naming_rule)
+    if json_data["has_sub"]:
+        move_sub(folder_old_path, folder_new_path, file_name, sub_list, naming_rule)
+    move_torrent(folder_old_path, folder_new_path, file_name, movie_number, naming_rule)
+    move_bif(folder_old_path, folder_new_path, file_name, naming_rule)
     # self.move_trailer_video(json_data, folder_old_path, folder_new_path, file_name, naming_rule)
-    move_other_file(json_data, folder_old_path, folder_new_path, file_name, naming_rule)
+    move_other_file(json_data["number"], folder_old_path, folder_new_path, file_name, naming_rule)
 
     # 移动文件
     if not move_movie(json_data, file_path, file_new_path):
@@ -784,7 +802,6 @@ def again_search() -> None:
 
 
 def move_sub(
-    json_data: JsonData,
     folder_old_path: str,
     folder_new_path: str,
     file_name: str,
@@ -792,11 +809,6 @@ def move_sub(
     naming_rule: str,
 ) -> None:
     copy_flag = False
-
-    # 没有字幕，返回
-    if not json_data["has_sub"]:
-        return
-
     # 更新模式 或 读取模式
     if config.main_mode > 2:
         if config.update_mode == "c" and config.success_file_rename == 0:

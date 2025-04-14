@@ -18,16 +18,13 @@ def add_sub_for_all_video():
         signal.show_log_text("字幕文件夹不存在！\n只能检查无字幕视频，无法添加字幕！")
         signal.show_log_text("================================================================================")
 
-    movie_path, success_folder, failed_folder, escape_folder_list, extrafanart_folder, softlink_path = (
-        get_movie_path_setting()
-    )
+    movie_path, *_ = get_movie_path_setting()
     signal.show_log_text(f" 🖥 Movie path: {movie_path} \n 🔎 正在检查所有视频，请稍候...")
     if config.subtitle_add_chs == "on":
         signal.show_log_text(" 如果字幕文件名不以 .chs 结尾，则会自动添加！\n")
     else:
         signal.show_log_text(" 如果字幕文件名以 .chs 结尾，将被自动删除！\n")
-    movie_type = config.media_type
-    movie_list = movie_lists([], movie_type, movie_path)  # 获取所有需要刮削的影片列表
+    movie_list = movie_lists([], config.media_type, movie_path)  # 获取所有需要刮削的影片列表
     sub_type_list = config.sub_type.split("|")  # 本地字幕文件后缀
 
     add_count = 0
@@ -35,7 +32,7 @@ def add_sub_for_all_video():
     new_sub_movie_list = []
     for movie in movie_list:
         file_info = get_file_info(movie, copy_sub=False)
-        json_data, number, folder_old_path, file_name, file_ex, sub_list, file_show_name, file_show_path = file_info
+        json_data, number, folder_old_path, file_name, file_ex, sub_list, *_ = file_info
         has_sub = json_data["has_sub"]  # 视频中文字幕标识
         if not has_sub:
             no_sub_count += 1

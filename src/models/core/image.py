@@ -14,12 +14,12 @@ from models.base.utils import convert_path, get_used_time
 from models.config.config import config
 from models.config.resources import resources
 from models.core.file import movie_lists
-from models.core.json_data import JsonData, LogBuffer
+from models.core.json_data import LogBuffer
 from models.core.utils import get_movie_path_setting
 from models.signals import signal
 
 
-def extrafanart_copy2(json_data: JsonData, folder_new_path: str):
+def extrafanart_copy2(folder_new_path: str):
     start_time = time.time()
     download_files = config.download_files
     keep_files = config.keep_files
@@ -58,7 +58,7 @@ def extrafanart_copy2(json_data: JsonData, folder_new_path: str):
     LogBuffer.log().write(f"\n 🍀 ExtraFanart_copy done! (copy extrafanart)({get_used_time(start_time)}s)")
 
 
-def extrafanart_extras_copy(json_data: JsonData, folder_new_path: str):
+def extrafanart_extras_copy(folder_new_path: str):
     start_time = time.time()
     download_files = config.download_files
     keep_files = config.keep_files
@@ -93,13 +93,7 @@ def extrafanart_extras_copy(json_data: JsonData, folder_new_path: str):
     return True
 
 
-def _add_to_pic(
-    pic_path: str,
-    img_pic: Image.Image,
-    mark_size: int,
-    count: int,
-    mark_name: str,
-):
+def _add_to_pic(pic_path: str, img_pic: Image.Image, mark_size: int, count: int, mark_name: str):
     # 获取水印图片，生成水印
     mark_fixed = config.mark_fixed
     mark_pos_corner = config.mark_pos_corner
@@ -235,16 +229,18 @@ def add_mark_thread(pic_path: str, mark_list: list[str]):
 
 
 def add_mark(
-    json_data: JsonData,
-    poster_marked=False,
-    thumb_marked=False,
-    fanart_marked=False,
+    has_sub: bool,
+    mosaic: str,
+    definition: str,
+    poster_path: str,
+    thumb_path: str,
+    fanart_path: str,
+    poster_marked: bool,
+    thumb_marked: bool,
+    fanart_marked: bool,
 ):
     download_files = config.download_files
     mark_type = config.mark_type.lower()
-    has_sub = json_data["has_sub"]
-    mosaic = json_data["mosaic"]
-    definition = json_data["definition"]
     mark_list = []
     if ("K" in definition or "UHD" in definition) and "hd" in mark_type:
         if "8" in definition:
@@ -274,9 +270,6 @@ def add_mark(
     if mark_list:
         download_files = config.download_files
         mark_show_type = ",".join(mark_list)
-        poster_path = json_data["poster_path"]
-        thumb_path = json_data["thumb_path"]
-        fanart_path = json_data["fanart_path"]
 
         if config.thumb_mark == 1 and "thumb" in download_files and thumb_path and not thumb_marked:
             add_mark_thread(thumb_path, mark_list)

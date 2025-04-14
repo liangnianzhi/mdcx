@@ -79,7 +79,7 @@ class ImageContext(TypedDict):
     cover: str
     poster: str
     trailer: str
-    extrafanart: str
+    extrafanart: list[str]
     cover_from: str
     poster_from: str
     trailer_from: str
@@ -257,7 +257,7 @@ def new_json_data() -> JsonData:
         "fanart_path": "",
         "cover": "",
         "poster": "",
-        "extrafanart": "",
+        "extrafanart": [],
         "actor_amazon": [],
         "actor_href": "",
         "all_actor": "",

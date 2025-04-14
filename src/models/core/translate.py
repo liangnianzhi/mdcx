@@ -18,7 +18,7 @@ from models.config.config import config
 from models.config.resources import resources
 from models.core.flags import Flags
 from models.core.json_data import JsonData, LogBuffer
-from models.core.web import get_actorname, get_yesjav_title, google_translate
+from models.core.web import get_actorname_from_avwiki, get_yesjav_title, google_translate
 from models.signals import signal
 
 deepl_result = {}
@@ -331,7 +331,7 @@ def translate_actor(json_data: JsonData):
         if mosaic != "国产" and (
             number.startswith("FC2") or number.startswith("SIRO") or re.search(r"\d{3,}[A-Z]{3,}-", number)
         ):
-            result, temp_actor = get_actorname(json_data["number"])
+            result, temp_actor = get_actorname_from_avwiki(json_data["number"])
             if result:
                 actor: str = json_data["actor"]
                 all_actor: str = json_data["all_actor"]

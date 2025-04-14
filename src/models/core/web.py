@@ -24,7 +24,7 @@ from models.core.utils import convert_half
 from models.signals import signal
 
 
-def get_actorname(number: str) -> tuple[bool, str]:
+def get_actorname_from_avwiki(number: str) -> tuple[bool, str]:
     # 获取真实演员名字
     url = f"https://av-wiki.net/?s={number}"
     result, res = get_html(url)
@@ -82,11 +82,7 @@ def _google_translate(msg: str) -> tuple[str, str]:
         return msg, str(e)
 
 
-def download_file_with_filepath(
-    url: str,
-    file_path: str,
-    folder_new_path: str,
-) -> bool:
+def download_file_with_filepath(url: str, file_path: str, folder_new_path: str) -> bool:
     if not url:
         return False
 
@@ -101,8 +97,8 @@ def download_file_with_filepath(
     return False
 
 
-def _mutil_extrafanart_download_thread(task: tuple[JsonData, str, str, str, str]) -> bool:
-    json_data, extrafanart_url, extrafanart_file_path, extrafanart_folder_path, extrafanart_name = task
+def _mutil_extrafanart_download_thread(task: tuple[str, str, str, str]) -> bool:
+    extrafanart_url, extrafanart_file_path, extrafanart_folder_path, extrafanart_name = task
     if download_file_with_filepath(extrafanart_url, extrafanart_file_path, extrafanart_folder_path):
         if check_pic(extrafanart_file_path):
             return True
@@ -289,16 +285,17 @@ def get_big_pic_by_amazon(
 
 
 def trailer_download(
-    json_data: JsonData,
+    number: str,
+    trailer_url: str,
+    trailer_from: str,
     folder_new_path: str,
     folder_old_path: str,
     naming_rule: str,
-) -> Optional[bool]:
+):
     start_time = time.time()
     download_files = config.download_files
     keep_files = config.keep_files
     trailer_name = config.trailer_name
-    trailer_url = json_data["trailer"]
     trailer_old_folder_path = os.path.join(folder_old_path, "trailers")
     trailer_new_folder_path = os.path.join(folder_new_path, "trailers")
 
@@ -339,8 +336,8 @@ def trailer_download(
 
     # 选择保留文件，当存在文件时，不下载。（done trailer path 未设置时，把当前文件设置为 done trailer path，以便其他分集复制）
     if "trailer" in keep_files and os.path.exists(trailer_file_path):
-        if not Flags.file_done_dic.get(json_data["number"]).get("trailer"):
-            Flags.file_done_dic[json_data["number"]].update({"trailer": trailer_file_path})
+        if not Flags.file_done_dic.get(number).get("trailer"):
+            Flags.file_done_dic[number].update({"trailer": trailer_file_path})
             # 带文件名时，删除掉新、旧文件夹，用不到了。（其他分集如果没有，可以复制第一个文件的预告片。此时不删，没机会删除了）
             if trailer_name == 0:
                 if os.path.exists(trailer_old_folder_path):
@@ -348,11 +345,11 @@ def trailer_download(
                 if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(trailer_new_folder_path):
                     shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
         LogBuffer.log().write(f"\n 🍀 Trailer done! (old)({get_used_time(start_time)}s) ")
-        return True
+        return
 
     # 带文件名时，选择下载不保留，或者选择保留但没有预告片，检查是否有其他分集已下载或本地预告片
     # 选择下载不保留，当没有下载成功时，不会删除不保留的文件
-    done_trailer_path = Flags.file_done_dic.get(json_data["number"]).get("trailer")
+    done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
     if trailer_name == 0 and done_trailer_path and os.path.exists(done_trailer_path):
         if os.path.exists(trailer_file_path):
             delete_file(trailer_file_path)
@@ -373,7 +370,7 @@ def trailer_download(
 
         # 开始下载
         download_files = config.download_files
-        signal.show_traceback_log(f"🍔 {json_data['number']} download trailer... {trailer_url}")
+        signal.show_traceback_log(f"🍔 {number} download trailer... {trailer_url}")
         trailer_file_path_temp = trailer_file_path
         if os.path.exists(trailer_file_path):
             trailer_file_path_temp = trailer_file_path + ".[DOWNLOAD].mp4"
@@ -381,15 +378,15 @@ def trailer_download(
             file_size = os.path.getsize(trailer_file_path_temp)
             if file_size >= content_length or "ignore_size" in download_files:
                 LogBuffer.log().write(
-                    f"\n 🍀 Trailer done! ({json_data['trailer_from']} {file_size}/{content_length})({get_used_time(start_time)}s) "
+                    f"\n 🍀 Trailer done! ({trailer_from} {file_size}/{content_length})({get_used_time(start_time)}s) "
                 )
-                signal.show_traceback_log(f"✅ {json_data['number']} trailer done!")
+                signal.show_traceback_log(f"✅ {number} trailer done!")
                 if trailer_file_path_temp != trailer_file_path:
                     move_file(trailer_file_path_temp, trailer_file_path)
                     delete_file(trailer_file_path_temp)
-                done_trailer_path = Flags.file_done_dic.get(json_data["number"]).get("trailer")
+                done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
                 if not done_trailer_path:
-                    Flags.file_done_dic[json_data["number"]].update({"trailer": trailer_file_path})
+                    Flags.file_done_dic[number].update({"trailer": trailer_file_path})
                     if trailer_name == 0:  # 带文件名，已下载成功，删除掉那些不用的文件夹即可
                         if os.path.exists(trailer_old_folder_path):
                             shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
@@ -397,10 +394,10 @@ def trailer_download(
                             trailer_new_folder_path
                         ):
                             shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
-                return True
+                return
             else:
                 LogBuffer.log().write(
-                    f"\n 🟠 Trailer size is incorrect! delete it! ({json_data['trailer_from']} {file_size}/{content_length}) "
+                    f"\n 🟠 Trailer size is incorrect! delete it! ({trailer_from} {file_size}/{content_length}) "
                 )
 
         # 删除下载失败的文件
@@ -408,9 +405,9 @@ def trailer_download(
         LogBuffer.log().write(f"\n 🟠 Trailer download failed! ({trailer_url}) ")
 
     if os.path.exists(trailer_file_path):  # 使用旧文件
-        done_trailer_path = Flags.file_done_dic.get(json_data["number"]).get("trailer")
+        done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
         if not done_trailer_path:
-            Flags.file_done_dic[json_data["number"]].update({"trailer": trailer_file_path})
+            Flags.file_done_dic[number].update({"trailer": trailer_file_path})
             if trailer_name == 0:  # 带文件名，已下载成功，删除掉那些不用的文件夹即可
                 if os.path.exists(trailer_old_folder_path):
                     shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
@@ -418,7 +415,7 @@ def trailer_download(
                     shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
         LogBuffer.log().write("\n 🟠 Trailer download failed! 将继续使用之前的本地文件！")
         LogBuffer.log().write(f"\n 🍀 Trailer done! (old)({get_used_time(start_time)}s)")
-        return True
+        return
 
 
 def _get_big_thumb(json_data: ImageContext) -> ImageContext:
@@ -841,7 +838,10 @@ def poster_download(json_data: JsonData, folder_new_path: str, poster_final_path
     poster_final_path_temp = poster_final_path + ".[CUT].jpg"
     if fanart_path:
         thumb_path = fanart_path
-    if cut_thumb_to_poster(json_data, thumb_path, poster_final_path_temp, image_cut):
+    success, poster_from = cut_thumb_to_poster(thumb_path, poster_final_path_temp, image_cut)
+    if poster_from:
+        json_data["poster_from"] = poster_from
+    if success:
         # 裁剪成功，替换旧图
         move_file(poster_final_path_temp, poster_final_path)
         if json_data["cd_part"]:
@@ -943,11 +943,10 @@ def fanart_download(json_data: JsonData, fanart_final_path: str) -> bool:
                 return False
 
 
-def extrafanart_download(json_data: JsonData, folder_new_path: str) -> Optional[bool]:
+def extrafanart_download(extrafanart_list: list[str], extrafanart_from: str, folder_new_path: str) -> Optional[bool]:
     start_time = time.time()
     download_files = config.download_files
     keep_files = config.keep_files
-    extrafanart_list = json_data.get("extrafanart")
     extrafanart_folder_path = os.path.join(folder_new_path, "extrafanart")
 
     # 不下载不保留时删除返回
@@ -982,10 +981,8 @@ def extrafanart_download(json_data: JsonData, folder_new_path: str) -> Optional[
             extrafanart_count += 1
             extrafanart_name = "fanart" + str(extrafanart_count) + ".jpg"
             extrafanart_file_path = os.path.join(extrafanart_folder_path_temp, extrafanart_name)
-            task_list.append(
-                (json_data, extrafanart_url, extrafanart_file_path, extrafanart_folder_path_temp, extrafanart_name)
-            )
-            task_list = cast(list[tuple[JsonData, str, str, str, str]], task_list)
+            task_list.append((extrafanart_url, extrafanart_file_path, extrafanart_folder_path_temp, extrafanart_name))
+            task_list = cast(list[tuple[str, str, str, str]], task_list)
         extrafanart_pool = ThreadPoolExecutor(20)  # 剧照下载线程池
         result = extrafanart_pool.map(_mutil_extrafanart_download_thread, task_list)
         for res in result:
@@ -996,12 +993,12 @@ def extrafanart_download(json_data: JsonData, folder_new_path: str) -> Optional[
                 shutil.rmtree(extrafanart_folder_path)
                 os.rename(extrafanart_folder_path_temp, extrafanart_folder_path)
             LogBuffer.log().write(
-                f"\n 🍀 ExtraFanart done! ({json_data['extrafanart_from']} {extrafanart_count_succ}/{extrafanart_count})({get_used_time(start_time)}s)"
+                f"\n 🍀 ExtraFanart done! ({extrafanart_from} {extrafanart_count_succ}/{extrafanart_count})({get_used_time(start_time)}s)"
             )
             return True
         else:
             LogBuffer.log().write(
-                f"\n 🟠 ExtraFanart download failed! ({json_data['extrafanart_from']} {extrafanart_count_succ}/{extrafanart_count})({get_used_time(start_time)}s)"
+                f"\n 🟠 ExtraFanart download failed! ({extrafanart_from} {extrafanart_count_succ}/{extrafanart_count})({get_used_time(start_time)}s)"
             )
             if extrafanart_folder_path_temp != extrafanart_folder_path:
                 shutil.rmtree(extrafanart_folder_path_temp)
