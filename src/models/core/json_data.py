@@ -142,6 +142,7 @@ class MovieData(TypedDict):
     naming_media: str
     naming_file: str
     country: str
+    tag_only: str
 
 
 class InternalStateData(TypedDict):
@@ -244,6 +245,7 @@ class ShowData(TypedDict):
 
 def new_json_data() -> JsonData:
     return {
+        "tag_only": "",
         "definition": "",
         "actor": "",
         "cover_size": (0, 0),
