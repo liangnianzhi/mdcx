@@ -51,7 +51,7 @@ from models.crawlers import (
     theporndb,
     xcity,
 )
-from models.entity.enums import FileMode
+from models.data_models import FileMode
 
 
 def _get_new_website_list(

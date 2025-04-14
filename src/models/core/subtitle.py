@@ -5,7 +5,7 @@ from models.config.config import config
 from models.core.file import get_file_info, movie_lists
 from models.core.scraper import start_new_scrape
 from models.core.utils import get_movie_path_setting
-from models.entity.enums import FileMode
+from models.data_models import FileMode
 from models.signals import signal
 
 

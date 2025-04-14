@@ -47,7 +47,7 @@ from models.core.utils import (
     show_movie_info,
 )
 from models.core.web import extrafanart_download, fanart_download, poster_download, thumb_download, trailer_download
-from models.entity.enums import FileMode
+from models.data_models import FileMode
 from models.signals import signal
 from models.tools.emby_actor_image import update_emby_actor_photo
 from models.tools.emby_actor_info import creat_kodi_actors

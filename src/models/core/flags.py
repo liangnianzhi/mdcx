@@ -1,6 +1,5 @@
 """
-用于刮削过程控制的标志位
-此模块不应依赖任何项目代码
+用于刮削过程控制的全局变量
 """
 
 import threading
@@ -8,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from models.entity.enums import FileMode
+from models.data_models import FileMode
 
 
 @dataclass

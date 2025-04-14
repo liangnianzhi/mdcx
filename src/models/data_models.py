@@ -1,5 +1,6 @@
 import enum
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Dict, Optional
 
 
@@ -92,3 +93,9 @@ class CrawlerResult:
     def failed(cls, site: str) -> "CrawlerResult":
         """创建失败的爬虫结果"""
         return cls(site=site)
+
+
+class FileMode(Enum):
+    Default = 0
+    Single = 1
+    Again = 2
