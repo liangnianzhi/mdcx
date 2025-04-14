@@ -92,7 +92,6 @@ def cut_thumb_to_poster(
             image_cut = "center"
         else:
             image_cut = "right"
-        json_data["image_cut"] = image_cut
 
     # 不裁剪
     if image_cut == "no":

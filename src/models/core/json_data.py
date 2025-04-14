@@ -69,7 +69,6 @@ class ImageContext(TypedDict):
 
     cover_size: tuple[int, int]
     poster_big: bool
-    image_cut: str
     # poster_marked: bool
     # thumb_marked: bool
     # fanart_marked: bool
@@ -211,7 +210,6 @@ def new_json_data() -> JsonData:
         "actor": "",
         "cover_size": (0, 0),
         "poster_big": False,
-        "image_cut": "",
         "poster_marked": True,
         "thumb_marked": True,
         "fanart_marked": True,
