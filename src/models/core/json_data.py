@@ -204,6 +204,44 @@ class JsonData(MoveContext, ActorData, MovieData, InternalStateData, OutputData,
     pass
 
 
+class ShowData(TypedDict):
+    file_path: str
+    number: str
+    actor: str
+    all_actor: str
+    source: str
+    website: str
+    title: str
+    outline: str
+    tag: str
+    release: str
+    year: str
+    runtime: str
+    director: str
+    series: str
+    studio: str
+    publisher: str
+    poster_path: str
+    thumb_path: str
+    fanart_path: str
+    has_sub: bool
+    c_word: str
+    leak: str
+    cd_part: str
+    mosaic: str
+    destroyed: str
+    actor_href: str
+    definition: str
+    cover_from: str
+    poster_from: str
+    extrafanart_from: str
+    trailer_from: str
+    file_path: str
+    show_name: str
+    img_path: str  # 不在初始数据中，但在函数中使用
+    country: str
+
+
 def new_json_data() -> JsonData:
     return {
         "definition": "",
