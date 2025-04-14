@@ -5,7 +5,6 @@ import threading
 import time
 import traceback
 import urllib
-from typing import Optional
 
 import deepl
 import langid
@@ -99,7 +98,7 @@ def _deepl_trans_thread(
     ls: str,
     title: str,
     outline: str,
-    json_data: JsonData,
+    file_path: str,
 ):
     global deepl_result
     result = ""
@@ -111,26 +110,26 @@ def _deepl_trans_thread(
     except Exception as e:
         result = f"网页接口请求失败! 错误：{e}"
         print(title, outline, f"网页接口请求失败! 错误：{e}")
-    deepl_result[json_data["file_path"]] = (title, outline, result)
+    deepl_result[file_path] = (title, outline, result)
 
 
 def deepl_translate(
     title: str,
     outline: str,
     ls="JA",
-    json_data: Optional[JsonData] = None,
+    file_path: str = "",
 ):
     global deepl_result
     deepl_key = config.deepl_key
     if not deepl_key:
-        if json_data:
-            t_deepl = threading.Thread(target=_deepl_trans_thread, args=(ls, title, outline, json_data))
+        if file_path:
+            t_deepl = threading.Thread(target=_deepl_trans_thread, args=(ls, title, outline, file_path))
             t_deepl.setDaemon(True)
             t_deepl.start()
             t_deepl.join(timeout=config.timeout)
             t, o, r = title, outline, "翻译失败或超时！"
-            if deepl_result.get(json_data["file_path"]):
-                t, o, r = deepl_result[json_data["file_path"]]
+            if deepl_result.get(file_path):
+                t, o, r = deepl_result[file_path]
             return t, o, r
         else:
             try:
@@ -501,7 +500,7 @@ def translate_title_outline(json_data: JsonData, movie_number: str):
                 elif each == "google":  # 使用 google 翻译
                     t, o, r = google_translate(trans_title, trans_outline)
                 else:  # 使用deepl翻译
-                    t, o, r = deepl_translate(trans_title, trans_outline, "JA", json_data)
+                    t, o, r = deepl_translate(trans_title, trans_outline, "JA", json_data["file_path"])
                 if r:
                     LogBuffer.log().write(
                         f"\n 🔴 Translation failed!({each.capitalize()})({get_used_time(start_time)}s) Error: {r}"
