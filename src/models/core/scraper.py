@@ -250,7 +250,6 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
             if "sort_del" in config.switch_on:
                 deal_old_files(
                     json_data,
-                    json_data["number"],
                     folder_old_path,
                     folder_new_path,
                     file_path,
@@ -273,7 +272,6 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
     # 清理旧的thumb、poster、fanart、extrafanart、nfo
     pic_final_catched, single_folder_catched = deal_old_files(
         json_data,
-        json_data["number"],
         folder_old_path,
         folder_new_path,
         file_path,
