@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import os
 import re
 import time
@@ -10,6 +9,7 @@ import zhconv
 from models.base.web import get_html, post_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -183,14 +183,7 @@ def get_number_list(file_name, number, appoint_number):  # 处理国产番号
     return number_list, filename_list
 
 
-def main(
-    number,
-    appoint_url="",
-    language="zh_cn",
-    file_path="",
-    appoint_number="",
-    mosaic="",
-):
+def main(number, appoint_url="", language="zh_cn", file_path="", appoint_number="", mosaic="") -> CrawlerResult:
     start_time = time.time()
     number = number.strip()
     website_name = "hdouban"
@@ -218,10 +211,7 @@ def main(
     trailer = ""
     hdouban_url = getattr(config, "hdouban_website", "https://ormtgu.com")
 
-    # real_url = 'https://byym21.com/moviedetail/153858'
-    # real_url = 'https://byym21.com/moviedetail/2202'
-    # real_url = 'https://byym21.com/moviedetail/435868'
-
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             number_org = [number]
@@ -318,34 +308,35 @@ def main(
             # 清除标题中的演员
             actor_photo = get_actor_photo(actor)
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": outline,
-                    "originalplot": outline,
-                    "tag": tag,
-                    "release": release.replace("N/A", ""),
-                    "year": year,
-                    "runtime": str(runtime).replace("N/A", ""),
-                    "score": str(score).replace("N/A", ""),
-                    "series": series.replace("N/A", ""),
-                    "director": director.replace("N/A", ""),
-                    "studio": studio.replace("N/A", ""),
-                    "publisher": studio,
-                    "source": "hdouban",
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": poster,
-                    "extrafanart": extrafanart,
-                    "trailer": trailer,
-                    "image_download": image_download,
-                    "image_cut": image_cut,
-                    "mosaic": mosaic,
-                    "website": re.sub(r"http[s]?://[^/]+", hdouban_url, real_url),
-                    "wanted": "",
-                }
+                movie_data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline=outline,
+                    originalplot=outline,
+                    tag=tag,
+                    release=release.replace("N/A", ""),
+                    year=year,
+                    runtime=str(runtime).replace("N/A", ""),
+                    score=str(score).replace("N/A", ""),
+                    series=series.replace("N/A", ""),
+                    director=director.replace("N/A", ""),
+                    studio=studio.replace("N/A", ""),
+                    publisher=studio,
+                    source="hdouban",
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster=poster,
+                    extrafanart=extrafanart,
+                    trailer=trailer,
+                    image_download=image_download,
+                    image_cut=image_cut,
+                    mosaic=mosaic,
+                    website=re.sub(r"http[s]?://[^/]+", hdouban_url, real_url),
+                    wanted="",
+                )
+                res = CrawlerResult(site=website_name, data=movie_data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
 
@@ -356,21 +347,9 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
+
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

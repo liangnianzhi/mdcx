@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,11 +8,9 @@ from lxml import etree
 from models.base.web import get_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
-
-
-# import traceback
 
 
 def get_title(html):
@@ -162,7 +159,7 @@ def getExtraFanart(html, url):  # 获取封面链接
                 each = url + each
             new_list.append(each)
     else:
-        new_list = ""
+        new_list = []
     return new_list
 
 
@@ -222,12 +219,7 @@ def get_real_url(
     raise Exception(debug_info)
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-    mosaic="",
-):
+def main(number, appoint_url="", language="jp", mosaic="") -> CrawlerResult:
     start_time = time.time()
     website_name = "javbus"
     LogBuffer.req().write(f"-> {website_name}")
@@ -246,11 +238,11 @@ def main(
     poster_url = ""
     image_download = False
     image_cut = "right"
-    dic = {}
     debug_info = ""
     json_log = {}
     LogBuffer.info().write(" \n    🌐 javbus")
 
+    res = CrawlerResult.failed(website_name)
     try:
         if not real_url:
             # 欧美去搜索，其他尝试直接拼接地址，没有结果时再搜索
@@ -340,34 +332,35 @@ def main(
             if extrafanart:
                 poster_url = extrafanart[0]
         try:
-            dic = {
-                "number": number,
-                "title": title,
-                "originaltitle": title,
-                "actor": actor,
-                "outline": "",
-                "originalplot": "",
-                "tag": tag,
-                "release": release,
-                "year": year,
-                "runtime": runtime,
-                "score": "",
-                "series": series,
-                "director": director,
-                "studio": studio,
-                "publisher": publisher,
-                "source": "javbus",
-                "website": real_url,
-                "actor_photo": actor_photo,
-                "cover": cover_url,
-                "poster": poster_url,
-                "extrafanart": extrafanart,
-                "trailer": "",
-                "image_download": image_download,
-                "image_cut": image_cut,
-                "mosaic": mosaic,
-                "wanted": "",
-            }
+            data = MovieData(
+                number=number,
+                title=title,
+                originaltitle=title,
+                actor=actor,
+                outline="",
+                originalplot="",
+                tag=tag,
+                release=release,
+                year=year,
+                runtime=runtime,
+                score="",
+                series=series,
+                director=director,
+                studio=studio,
+                publisher=publisher,
+                source="javbus",
+                website=real_url,
+                actor_photo=actor_photo,
+                cover=cover_url,
+                poster=poster_url,
+                extrafanart=extrafanart,
+                trailer="",
+                image_download=image_download,
+                image_cut=image_cut,
+                mosaic=mosaic,
+                wanted="",
+            )
+            res = CrawlerResult(site=website_name, data=data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(debug_info)
         except Exception as e:
@@ -376,21 +369,8 @@ def main(
             raise Exception(debug_info)
     except Exception as e:
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from lxml import etree
 from models.base.web import curl_html
 from models.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 from models.signals import signal
 
 urllib3.disable_warnings()  # yapf: disable
@@ -143,11 +144,7 @@ def get_real_url(html, number):
     return ""
 
 
-def main(
-    number,
-    appoint_url="",
-    language="zh_cn",
-):
+def main(number, appoint_url="", language="zh_cn") -> CrawlerResult:
     start_time = time.time()
     website_name = "airav_cc"
     LogBuffer.req().write(f"-> {website_name}[{language}]")
@@ -165,7 +162,7 @@ def main(
     LogBuffer.info().write(f" \n    🌐 airav[{language.replace('zh_', '')}]")
 
     # real_url = 'https://airav5.fun/jp/playon.aspx?hid=44733'
-
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             # 通过搜索获取real_url https://airav.io/search_result?kw=ssis-200
@@ -230,41 +227,41 @@ def main(
             series = get_series(html_info)
             director = ""
             publisher = ""
-            extrafanart = ""
             if "无码" in tag or "無修正" in tag or "無码" in tag or "uncensored" in tag.lower():
                 mosaic = "无码"
             title_rep = ["第一集", "第二集", " - 上", " - 下", " 上集", " 下集", " -上", " -下"]
             for each in title_rep:
                 title = title.replace(each, "").strip()
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": outline,
-                    "originalplot": outline,
-                    "tag": tag,
-                    "release": release,
-                    "year": year,
-                    "runtime": runtime,
-                    "score": score,
-                    "series": series,
-                    "director": director,
-                    "studio": studio,
-                    "publisher": publisher,
-                    "source": "airav_cc",
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": cover_url.replace("big_pic", "small_pic"),
-                    "extrafanart": extrafanart,
-                    "trailer": "",
-                    "image_download": image_download,
-                    "image_cut": image_cut,
-                    "mosaic": mosaic,
-                    "website": real_url,
-                    "wanted": "",
-                }
+                data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline=outline,
+                    originalplot=outline,
+                    tag=tag,
+                    release=release,
+                    year=year,
+                    runtime=runtime,
+                    score=score,
+                    series=series,
+                    director=director,
+                    studio=studio,
+                    publisher=publisher,
+                    source="airav_cc",
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster=cover_url.replace("big_pic", "small_pic"),
+                    extrafanart=[],
+                    trailer="",
+                    image_download=image_download,
+                    image_cut=image_cut,
+                    mosaic=mosaic,
+                    website=real_url,
+                    wanted="",
+                )
+                res = CrawlerResult(site=website_name, data=data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
             except Exception as e:
@@ -274,21 +271,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

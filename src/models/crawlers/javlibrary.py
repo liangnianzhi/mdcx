@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,6 +8,7 @@ from lxml import etree
 from models.base.web import curl_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -158,11 +158,7 @@ def get_wanted(html):
     return str(result[0]) if result else ""
 
 
-def main(
-    number,
-    appoint_url="",
-    language="zh_cn",
-):
+def main(number, appoint_url="", language="zh_cn") -> CrawlerResult:
     start_time = time.time()
     website_name = "javlibrary"
     LogBuffer.req().write(f"-> {website_name}[{language}]")
@@ -189,6 +185,7 @@ def main(
     LogBuffer.info().write(f" \n    🌐 javlibrary[{language.replace('zh_', '')}]")
     debug_info = ""
 
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             # 生成搜索地址
@@ -256,34 +253,35 @@ def main(
             wanted = get_wanted(html_detail)
 
             try:
-                dic = {
-                    "number": web_number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": "",
-                    "originalplot": "",
-                    "tag": tag,
-                    "release": release,
-                    "year": year,
-                    "runtime": runtime,
-                    "score": score,
-                    "series": "",
-                    "director": director,
-                    "studio": studio,
-                    "publisher": publisher,
-                    "source": "javlibrary",
-                    "website": real_url,
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": "",
-                    "extrafanart": "",
-                    "trailer": "",
-                    "image_download": False,
-                    "image_cut": "right",
-                    "mosaic": "有码",
-                    "wanted": wanted,
-                }
+                data = MovieData(
+                    number=web_number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline="",
+                    originalplot="",
+                    tag=tag,
+                    release=release,
+                    year=year,
+                    runtime=runtime,
+                    score=score,
+                    series="",
+                    director=director,
+                    studio=studio,
+                    publisher=publisher,
+                    source="javlibrary",
+                    website=real_url,
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster="",
+                    extrafanart=[],
+                    trailer="",
+                    image_download=False,
+                    image_cut="right",
+                    mosaic="有码",
+                    wanted=wanted,
+                )
+                res = CrawlerResult(site=website_name, data=data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
 
@@ -295,21 +293,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {language: dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":
@@ -319,6 +304,29 @@ if __name__ == "__main__":
     # print(main('SSNI-994'))
     # print(main('SSNI-795'))
     # print(main(' IPX-071'))
-    print(
-        main("SNIS-003")
-    )  # print(main('SSIS-118'))  # print(main('AA-007'))  # print(main('abs-141'))  # print(main('HYSD-00083'))  # print(main('IESP-660'))  # print(main('n1403'))  # print(main('GANA-1910'))  # print(main('heyzo-1031'))  # print(main_us('x-art.19.11.03'))  # print(main('032020-001'))  # print(main('S2M-055'))  # print(main('LUXU-1217'))  # print(main('SSIS-001', ''))  # print(main('SSIS-090', ''))  # print(main('SNIS-016', ''))  # print(main('HYSD-00083', ''))  # print(main('IESP-660', ''))  # print(main('n1403', ''))  # print(main('GANA-1910', ''))  # print(main('heyzo-1031', ''))  # print(main_us('x-art.19.11.03'))  # print(main('032020-001', ''))  # print(main('S2M-055', ''))  # print(main('LUXU-1217', ''))  # print(main_us('x-art.19.11.03', ''))
+    print(main("SNIS-003"))
+    # print(main('SSIS-118'))
+    # print(main('AA-007'))
+    # print(main('abs-141'))
+    # print(main('HYSD-00083'))
+    # print(main('IESP-660'))
+    # print(main('n1403'))
+    # print(main('GANA-1910'))
+    # print(main('heyzo-1031'))
+    # print(main_us('x-art.19.11.03'))
+    # print(main('032020-001'))
+    # print(main('S2M-055'))
+    # print(main('LUXU-1217'))
+    # print(main('SSIS-001', ''))
+    # print(main('SSIS-090', ''))
+    # print(main('SNIS-016', ''))
+    # print(main('HYSD-00083', ''))
+    # print(main('IESP-660', ''))
+    # print(main('n1403', ''))
+    # print(main('GANA-1910', ''))
+    # print(main('heyzo-1031', ''))
+    # print(main_us('x-art.19.11.03'))
+    # print(main('032020-001', ''))
+    # print(main('S2M-055', ''))
+    # print(main('LUXU-1217', ''))
+    # print(main_us('x-art.19.11.03', ''))

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time
 import unicodedata
@@ -10,6 +9,7 @@ from lxml import etree
 
 from models.base.web import get_html
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -72,11 +72,7 @@ def get_extrafanart(html):
     return result
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     start_time = time.time()
     website_name = "getchu"
     LogBuffer.req().write(f"-> {website_name}")
@@ -92,7 +88,7 @@ def main(
     if not real_url and ("DLID" in number.upper() or "ITEM" in number.upper() or "GETCHU" in number.upper()):
         id = re.findall(r"\d+", number)[0]
         real_url = f"https://dl.getchu.com/i/item{id}"  # real_url = 'https://dl.getchu.com/i/item4024984'
-
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             keyword = unicodedata.normalize(
@@ -104,7 +100,7 @@ def main(
                 pass
             keyword2 = urllib.parse.quote_plus(
                 keyword, encoding="EUC-JP"
-            )  # quote() 不编码斜线，空格‘ ’编码为‘%20’；quote_plus() 会编码斜线为‘%2F’; 空格‘ ’编码为‘+’
+            )  # quote() 不编码斜线，空格' '编码为'%20'；quote_plus() 会编码斜线为'%2F'; 空格' '编码为'+'
             url_search = f"https://dl.getchu.com/search/search_list.php?dojin=1&search_category_id=&search_keyword={keyword2}&btnWordSearch=%B8%A1%BA%F7&action=search&set_category_flag=1"
             debug_info = f"搜索地址: {url_search} "
             LogBuffer.info().write(web_info + debug_info)
@@ -160,34 +156,35 @@ def main(
             extrafanart = get_extrafanart(html_info)
             mosaic = "同人"
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": outline,
-                    "originalplot": outline,
-                    "tag": tag,
-                    "release": release,
-                    "year": year,
-                    "runtime": runtime,
-                    "score": score,
-                    "series": series,
-                    "director": director,
-                    "studio": studio,
-                    "publisher": publisher,
-                    "source": "dl_getchu",
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": cover_url,
-                    "extrafanart": extrafanart,
-                    "trailer": "",
-                    "image_download": image_download,
-                    "image_cut": image_cut,
-                    "mosaic": mosaic,
-                    "website": real_url,
-                    "wanted": "",
-                }
+                movie_data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline=outline,
+                    originalplot=outline,
+                    tag=tag,
+                    release=release,
+                    year=year,
+                    runtime=runtime,
+                    score=score,
+                    series=series,
+                    director=director,
+                    studio=studio,
+                    publisher=publisher,
+                    source="dl_getchu",
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster=cover_url,
+                    extrafanart=extrafanart,
+                    trailer="",
+                    image_download=image_download,
+                    image_cut=image_cut,
+                    mosaic=mosaic,
+                    website=real_url,
+                    wanted="",
+                )
+                res = CrawlerResult(site=website_name, data=movie_data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
 
@@ -198,21 +195,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

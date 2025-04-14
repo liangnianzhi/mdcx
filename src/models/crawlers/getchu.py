@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import re
 import time
 import unicodedata
@@ -12,6 +11,7 @@ from lxml import etree
 from models.base.web import get_html
 from models.core.json_data import LogBuffer
 from models.crawlers import getchu_dl
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -109,11 +109,7 @@ def get_extrafanart(html):
     return result
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     if "DLID" in number.upper() or "ITEM" in number.upper() or "GETCHU" in number.upper() or "dl.getchu" in appoint_url:
         return getchu_dl.main(number, appoint_url, "jp")
     start_time = time.time()
@@ -133,6 +129,7 @@ def main(
     # real_url = 'http://www.getchu.com/soft.phtml?id=1178713&gc=gc'
     # real_url = 'http://www.getchu.com/soft.phtml?id=1007200&gc=gc'
 
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             number = number.replace("10bit", "").replace("裕未", "祐未").replace("“", "”").replace("·", "・")
@@ -208,34 +205,35 @@ def main(
                 mosaic = "里番"
             mosaic = get_mosaic(html_info, mosaic)
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": outline,
-                    "originalplot": outline,
-                    "tag": tag,
-                    "release": release,
-                    "year": year,
-                    "runtime": runtime,
-                    "score": score,
-                    "series": series,
-                    "director": director,
-                    "studio": studio,
-                    "publisher": publisher,
-                    "source": "getchu",
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": cover_url,
-                    "extrafanart": extrafanart,
-                    "trailer": "",
-                    "image_download": image_download,
-                    "image_cut": image_cut,
-                    "mosaic": mosaic,
-                    "website": real_url,
-                    "wanted": "",
-                }
+                data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline=outline,
+                    originalplot=outline,
+                    tag=tag,
+                    release=release,
+                    year=year,
+                    runtime=runtime,
+                    score=score,
+                    series=series,
+                    director=director,
+                    studio=studio,
+                    publisher=publisher,
+                    source="getchu",
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster=cover_url,
+                    extrafanart=extrafanart,
+                    trailer="",
+                    image_download=image_download,
+                    image_cut=image_cut,
+                    mosaic=mosaic,
+                    website=real_url,
+                    wanted="",
+                )
+                res = CrawlerResult(site=website_name, data=data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
 
@@ -246,21 +244,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

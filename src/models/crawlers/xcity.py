@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,6 +8,7 @@ from lxml import etree
 from models.base.web import get_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -139,7 +139,7 @@ def getExtrafanart(html):
         )
         result = result.split(",")
     else:
-        result = ""
+        result = []
     return result
 
 
@@ -161,11 +161,7 @@ def getSeries(html):
     return result
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     start_time = time.time()
     website_name = "xcity"
     LogBuffer.req().write(f"-> {website_name}")
@@ -176,11 +172,10 @@ def main(
     poster_url = ""
     image_download = False
     image_cut = "right"
-    dic = {}
     web_info = "\n       "
     LogBuffer.info().write(" \n    🌐 xcity")
     debug_info = ""
-
+    res = CrawlerResult.failed(website_name)
     try:
         if not real_url:
             url_search = "https://xcity.jp/result_published/?q=" + number.replace("-", "")
@@ -238,35 +233,35 @@ def main(
             score = ""
             series = getSeries(html_info)
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": outline,
-                    "originalplot": outline,
-                    "tag": tag,
-                    "release": release,
-                    "year": year,
-                    "runtime": runtime,
-                    "score": score,
-                    "series": series,
-                    "director": director,
-                    "studio": studio,
-                    "publisher": publisher,
-                    "source": "xcity",
-                    "website": real_url,
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": poster_url,
-                    "extrafanart": extrafanart,
-                    "trailer": "",
-                    "image_download": image_download,
-                    "image_cut": image_cut,
-                    "mosaic": "有码",
-                    "wanted": "",
-                }
-
+                movie_data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline=outline,
+                    originalplot=outline,
+                    tag=tag,
+                    release=release,
+                    year=year,
+                    runtime=runtime,
+                    score=score,
+                    series=series,
+                    director=director,
+                    studio=studio,
+                    publisher=publisher,
+                    source="xcity",
+                    website=real_url,
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster=poster_url,
+                    extrafanart=extrafanart,
+                    trailer="",
+                    image_download=image_download,
+                    image_cut=image_cut,
+                    mosaic="有码",
+                    wanted="",
+                )
+                res = CrawlerResult(site=website_name, data=movie_data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
 
@@ -277,15 +272,8 @@ def main(
 
     except Exception as e:
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(dic, ensure_ascii=False, sort_keys=False, indent=4, separators=(",", ": "))  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

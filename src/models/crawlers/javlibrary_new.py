@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import json
 
 import urllib3
 
 from models.config.config import config
 from models.crawlers import javlibrary
+from models.data_models import CrawlerResult
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -24,39 +24,23 @@ def main(
         + config.studio_language
     )
     appoint_url = appoint_url.replace("/cn/", "/ja/").replace("/tw/", "/ja/")
-    json_data = json.loads(javlibrary.main(number, appoint_url, "jp"))
-    if not json_data["javlibrary"]["jp"]["title"]:
-        json_data["javlibrary"]["zh_cn"] = json_data["javlibrary"]["jp"]
-        json_data["javlibrary"]["zh_tw"] = json_data["javlibrary"]["jp"]
-        return json.dumps(
-            json_data,
-            ensure_ascii=False,
-            sort_keys=False,
-            indent=4,
-            separators=(",", ": "),
-        )
+    res = javlibrary.main(number, appoint_url, "jp")
+    if res.data is None:
+        return CrawlerResult.failed("javlibrary")
 
     if "zh_cn" in all_language:
         language = "zh_cn"
-        appoint_url = json_data["javlibrary"]["jp"]["website"].replace("/ja/", "/cn/")
+        appoint_url = res.data.website.replace("/ja/", "/cn/")
     elif "zh_tw" in all_language:
         language = "zh_tw"
-        appoint_url = json_data["javlibrary"]["jp"]["website"].replace("/ja/", "/tw/")
+        appoint_url = res.data.website.replace("/ja/", "/tw/")
 
-    json_data_zh = json.loads(javlibrary.main(number, appoint_url, language))
-    dic = json_data_zh["javlibrary"][language]
-    dic["originaltitle"] = json_data["javlibrary"]["jp"]["originaltitle"]
-    dic["originalplot"] = json_data["javlibrary"]["jp"]["originalplot"]
-    json_data["javlibrary"].update({"zh_cn": dic, "zh_tw": dic})
-
-    js = json.dumps(
-        json_data,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
-    return js
+    res_zh = javlibrary.main(number, appoint_url, language)
+    if res_zh.data is None:
+        return CrawlerResult.failed("iqqtv")
+    res_zh.data.originaltitle = res.data.originaltitle
+    res_zh.data.originalplot = res.data.originalplot
+    return res_zh
 
 
 if __name__ == "__main__":

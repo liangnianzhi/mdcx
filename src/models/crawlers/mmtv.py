@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time
 
@@ -11,6 +10,7 @@ from models.base.web import curl_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
 from models.crawlers.guochan import get_extra_info
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -144,7 +144,7 @@ def get_extrafanart(html):
     if result2 := html.xpath('//div[contains(@class, "fullvideo")]/script[@language="javascript"]/text()'):
         result2 = re.findall(r"https?://.+?\.jpe?g", str(result2))
     result = result1 + result2
-    return result if result else ""
+    return result if result else []
 
 
 def get_mosaic(html, number):
@@ -175,12 +175,7 @@ def get_number(html, number):
     return number.replace("FC2-PPV ", "FC2-"), release, runtime, number
 
 
-def main(
-    number,
-    appoint_url="",
-    language="zh_cn",
-    file_path="",
-):
+def main(number, appoint_url="", language="zh_cn", file_path="") -> CrawlerResult:
     start_time = time.time()
     website_name = "7mmtv"
     LogBuffer.req().write(f"-> {website_name}")
@@ -196,6 +191,7 @@ def main(
     search_url = f"{mmtv_url}/zh/searchform_search/all/index.html"
     mosaic = ""
 
+    res = CrawlerResult.failed(website_name)
     try:
         if not real_url:
             search_keyword = number
@@ -248,62 +244,48 @@ def main(
             extrafanart = get_extrafanart(html_info)
             mosaic = get_mosaic(html_info, number)
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": outline,
-                    "originalplot": originalplot,
-                    "tag": tag,
-                    "release": release,
-                    "year": year,
-                    "runtime": runtime,
-                    "score": "",
-                    "series": "",
-                    "country": "CN",
-                    "director": director,
-                    "studio": studio,
-                    "publisher": publisher,
-                    "source": "7mmtv",
-                    "website": real_url,
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": "",
-                    "extrafanart": extrafanart,
-                    "trailer": "",
-                    "image_download": False,
-                    "image_cut": "",
-                    "mosaic": mosaic,
-                    "wanted": "",
-                }
+                movie_data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline=outline,
+                    originalplot=originalplot,
+                    tag=tag,
+                    release=release,
+                    year=year,
+                    runtime=runtime,
+                    score="",
+                    series="",
+                    country="CN",
+                    director=director,
+                    studio=studio,
+                    publisher=publisher,
+                    source="7mmtv",
+                    website=real_url,
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster="",
+                    extrafanart=extrafanart,
+                    trailer="",
+                    image_download=False,
+                    image_cut="",
+                    mosaic=mosaic,
+                    wanted="",
+                )
+                res = CrawlerResult(site=website_name, data=movie_data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
-
             except Exception as e:
                 debug_info = f"数据生成出错: {str(e)}"
                 LogBuffer.info().write(web_info + debug_info)
                 raise Exception(debug_info)
-
     except Exception as e:
         # import traceback
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

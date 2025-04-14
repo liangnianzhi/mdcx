@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time
 
@@ -10,6 +9,7 @@ from models.base.web import curl_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
 from models.crawlers.guochan import get_extra_info, get_number_list
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -74,13 +74,7 @@ def get_redirected_url(url):
         return None
 
 
-def main(
-    number,
-    appoint_url="",
-    language="zh_cn",
-    file_path="",
-    appoint_number="",
-):
+def main(number, appoint_url="", language="zh_cn", file_path="", appoint_number="") -> CrawlerResult:
     start_time = time.time()
     website_name = "hscangku"
     LogBuffer.req().write(f"-> {website_name}")
@@ -92,6 +86,7 @@ def main(
     real_url = appoint_url
     hscangku_url = getattr(config, "hscangku_website", "http://hsck.net")
 
+    res = CrawlerResult.failed(website_name)
     try:
         if not real_url:
             # 处理番号
@@ -138,35 +133,36 @@ def main(
         actor_photo = get_actor_photo(actor)
 
         try:
-            dic = {
-                "number": number,
-                "title": title,
-                "originaltitle": title,
-                "actor": actor,
-                "outline": "",
-                "originalplot": "",
-                "tag": tag,
-                "release": "",
-                "year": "",
-                "runtime": "",
-                "score": "",
-                "series": "",
-                "country": "CN",
-                "director": "",
-                "studio": "",
-                "publisher": "",
-                "source": "hscangku",
-                "website": real_url,
-                "actor_photo": actor_photo,
-                "cover": cover_url,
-                "poster": "",
-                "extrafanart": "",
-                "trailer": "",
-                "image_download": False,
-                "image_cut": "no",
-                "mosaic": "国产",
-                "wanted": "",
-            }
+            movie_data = MovieData(
+                number=number,
+                title=title,
+                originaltitle=title,
+                actor=actor,
+                outline="",
+                originalplot="",
+                tag=tag,
+                release="",
+                year="",
+                runtime="",
+                score="",
+                series="",
+                director="",
+                studio="",
+                publisher="",
+                source="hscangku",
+                actor_photo=actor_photo,
+                cover=cover_url,
+                poster="",
+                extrafanart=[],
+                trailer="",
+                image_download=False,
+                image_cut="no",
+                mosaic="国产",
+                website=real_url,
+                wanted="",
+                country="CN",
+            )
+            res = CrawlerResult(site=website_name, data=movie_data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(web_info + debug_info)
 
@@ -178,21 +174,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

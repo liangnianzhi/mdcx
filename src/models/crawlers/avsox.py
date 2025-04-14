@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -8,6 +7,7 @@ from lxml import etree
 
 from models.base.web import get_avsox_domain, get_html
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -98,11 +98,7 @@ def get_real_url(number, html):
     return page_url, i
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     start_time = time.time()
     website_name = "avsox"
     LogBuffer.req().write(f"-> {website_name}")
@@ -112,11 +108,11 @@ def main(
     poster_url = ""
     image_download = False
     image_cut = "center"
-    dic = {}
     web_info = "\n       "
     LogBuffer.info().write(" \n    🌐 avsox")
     debug_info = ""
 
+    res = CrawlerResult.failed(website_name)
     try:
         if not real_url:
             avsox_url = get_avsox_domain()
@@ -162,66 +158,52 @@ def main(
         series = get_series(html)
         studio = get_studio(html)
         try:
-            dic = {
-                "number": number,
-                "title": title,
-                "originaltitle": title,
-                "actor": actor,
-                "actor_photo": actor_photo,
-                "outline": "",
-                "originalplot": "",
-                "tag": tag,
-                "release": release,
-                "year": year,
-                "runtime": runtime,
-                "score": "",
-                "series": series,
-                "director": "",
-                "studio": studio,
-                "publisher": studio,
-                "source": "avsox",
-                "website": real_url,
-                "cover": cover_url,
-                "poster": poster_url,
-                "extrafanart": "",
-                "trailer": "",
-                "image_download": image_download,
-                "image_cut": image_cut,
-                "mosaic": "无码",
-                "wanted": "",
-            }
+            movie_data = MovieData(
+                number=number,
+                title=title,
+                originaltitle=title,
+                actor=actor,
+                actor_photo=actor_photo,
+                outline="",
+                originalplot="",
+                tag=tag,
+                release=release,
+                year=year,
+                runtime=runtime,
+                score="",
+                series=series,
+                director="",
+                studio=studio,
+                publisher=studio,
+                source="avsox",
+                website=real_url,
+                cover=cover_url,
+                poster=poster_url,
+                extrafanart=[],
+                trailer="",
+                image_download=image_download,
+                image_cut=image_cut,
+                mosaic="无码",
+                wanted="",
+            )
+            res = CrawlerResult(site=website_name, data=movie_data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(web_info + debug_info)
-
         except Exception as e:
             debug_info = f"数据生成出错: {str(e)}"
             LogBuffer.info().write(web_info + debug_info)
             raise Exception(debug_info)
-
     except Exception as e:
         # cf.add_log(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":
     # print(main('051119-917'))
     # print(main('EDVR-063 '))
     # print(main('032620_001'))
-    print(
-        main("FC2-2101993")
-    )  # print(main('032620_001', 'https://avsox.click/cn/movie/cb8d28437cff4e90'))  # print(main('', 'https://avsox.click/cn/movie/0b4e42a270b9871b'))
+    print(main("FC2-2101993"))
+    # print(main('032620_001', 'https://avsox.click/cn/movie/cb8d28437cff4e90'))
+    # print(main('', 'https://avsox.click/cn/movie/0b4e42a270b9871b'))

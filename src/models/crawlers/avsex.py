@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,6 +8,7 @@ from lxml import etree
 from models.base.web import curl_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -154,11 +154,7 @@ def get_real_url(html, number):
         return ""
 
 
-def main(
-    number,
-    appoint_url="",
-    language="",
-):
+def main(number, appoint_url="", language="") -> CrawlerResult:
     start_time = time.time()
     website_name = "avsex"
     LogBuffer.req().write(f"-> {website_name}")
@@ -183,6 +179,7 @@ def main(
     # real_url = 'https://9sex.tv/web/video?id=317900'
     # real_url = 'https://gg5.co/cn/video/detail/359635'
 
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             # https://avsex.cc/web/search?page=1&keyWord=ssis
@@ -244,34 +241,35 @@ def main(
             mosaic = get_mosaic(html_info, studio)
 
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": outline,
-                    "originalplot": outline,
-                    "tag": tag,
-                    "release": release.replace("N/A", ""),
-                    "year": year,
-                    "runtime": str(runtime).replace("N/A", ""),
-                    "score": str(score).replace("N/A", ""),
-                    "series": series.replace("N/A", ""),
-                    "director": director.replace("N/A", ""),
-                    "studio": studio.replace("N/A", ""),
-                    "publisher": publisher.replace("N/A", ""),
-                    "source": "avsex",
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": poster_url,
-                    "extrafanart": extrafanart,
-                    "trailer": trailer,
-                    "image_download": False,
-                    "image_cut": image_cut,
-                    "mosaic": mosaic,
-                    "website": re.sub(r"http[s]?://[^/]+", avsex_url, real_url),
-                    "wanted": "",
-                }
+                movie_data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline=outline,
+                    originalplot=outline,
+                    tag=tag,
+                    release=release.replace("N/A", ""),
+                    year=year,
+                    runtime=str(runtime).replace("N/A", ""),
+                    score=str(score).replace("N/A", ""),
+                    series=series.replace("N/A", ""),
+                    director=director.replace("N/A", ""),
+                    studio=studio.replace("N/A", ""),
+                    publisher=publisher.replace("N/A", ""),
+                    source="avsex",
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster=poster_url,
+                    extrafanart=extrafanart,
+                    trailer=trailer,
+                    image_download=False,
+                    image_cut=image_cut,
+                    mosaic=mosaic,
+                    website=re.sub(r"http[s]?://[^/]+", avsex_url, real_url),
+                    wanted="",
+                )
+                res = CrawlerResult(site=website_name, data=movie_data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
 
@@ -283,21 +281,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":
@@ -307,6 +292,47 @@ if __name__ == "__main__":
     # print(main('', 'https://9sex.tv/#/home/video/332642'))
     # print(main('EVA-088'))
     # print(main('SNIS-216'))
-    print(
-        main("CAWD-582")
-    )  # print(main('ALDN-107'))  # print(main('ten-024'))  # print(main('459ten-024'))  # print(main('IPX-729'))  # print(main('STARS-199'))    # 无结果  # print(main('SIVR-160'))  # print(main('', 'https://avsex.club/web/video?id=333778'))  # print(main('', 'avsex.club/web/video?id=333778'))  # print(main('ssni-700'))  # print(main('ssis-200'))  # print(main('heyzo-2026'))  # print(main('110219-001'))  # print(main('abw-157'))  # print(main('010520-001'))  # print(main('hbad-599', 'https://avsex.club/web/video?id=333777'))  # print(main('hbad-599', 'https://avsex.club/web/video?id=oo'))  # print(main('abs-141'))  # print(main('HYSD-00083'))  # print(main('IESP-660'))  # print(main('n1403'))  # print(main('GANA-1910'))  # print(main('heyzo-1031'))  # print(main_us('x-art.19.11.03'))  # print(main('032020-001'))  # print(main('S2M-055'))  # print(main('LUXU-1217'))  # print(main('1101132', ''))  # print(main('OFJE-318'))  # print(main('110119-001'))  # print(main('abs-001'))  # print(main('SSIS-090', ''))  # print(main('SSIS-090', ''))  # print(main('SNIS-016', ''))  # print(main('HYSD-00083', ''))  # print(main('IESP-660', ''))  # print(main('n1403', ''))  # print(main('GANA-1910', ''))  # print(main('heyzo-1031', ''))  # print(main_us('x-art.19.11.03'))  # print(main('032020-001', ''))  # print(main('S2M-055', ''))  # print(main('LUXU-1217', ''))  # print(main_us('x-art.19.11.03', ''))
+    print(main("CAWD-582"))
+    # print(main('ALDN-107'))
+    # print(main('ten-024'))
+    # print(main('459ten-024'))
+    # print(main('IPX-729'))
+    # print(main('STARS-199'))    # 无结果
+    # print(main('SIVR-160'))
+    # print(main('', 'https://avsex.club/web/video?id=333778'))
+    # print(main('', 'avsex.club/web/video?id=333778'))
+    # print(main('ssni-700'))
+    # print(main('ssis-200'))
+    # print(main('heyzo-2026'))
+    # print(main('110219-001'))
+    # print(main('abw-157'))
+    # print(main('010520-001'))
+    # print(main('hbad-599', 'https://avsex.club/web/video?id=333777'))
+    # print(main('hbad-599', 'https://avsex.club/web/video?id=oo'))
+    # print(main('abs-141'))
+    # print(main('HYSD-00083'))
+    # print(main('IESP-660'))
+    # print(main('n1403'))
+    # print(main('GANA-1910'))
+    # print(main('heyzo-1031'))
+    # print(main_us('x-art.19.11.03'))
+    # print(main('032020-001'))
+    # print(main('S2M-055'))
+    # print(main('LUXU-1217'))
+    # print(main('1101132', ''))
+    # print(main('OFJE-318'))
+    # print(main('110119-001'))
+    # print(main('abs-001'))
+    # print(main('SSIS-090', ''))
+    # print(main('SSIS-090', ''))
+    # print(main('SNIS-016', ''))
+    # print(main('HYSD-00083', ''))
+    # print(main('IESP-660', ''))
+    # print(main('n1403', ''))
+    # print(main('GANA-1910', ''))
+    # print(main('heyzo-1031', ''))
+    # print(main_us('x-art.19.11.03'))
+    # print(main('032020-001', ''))
+    # print(main('S2M-055', ''))
+    # print(main('LUXU-1217', ''))
+    # print(main_us('x-art.19.11.03', ''))

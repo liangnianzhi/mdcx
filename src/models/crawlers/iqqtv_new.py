@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import json
 
 from models.config.config import config
 from models.crawlers import iqqtv
+from models.data_models import CrawlerResult
 
 
 def main(
@@ -20,40 +20,22 @@ def main(
         + config.studio_language
     )
     appoint_url = appoint_url.replace("/cn/", "/jp/").replace("iqqtv.cloud/player", "iqqtv.cloud/jp/player")
-    json_data = json.loads(iqqtv.main(number, appoint_url, "jp"))
-    if not json_data["iqqtv"]["jp"]["title"]:
-        json_data["iqqtv"]["zh_cn"] = json_data["iqqtv"]["jp"]
-        json_data["iqqtv"]["zh_tw"] = json_data["iqqtv"]["jp"]
-        return json.dumps(
-            json_data,
-            ensure_ascii=False,
-            sort_keys=False,
-            indent=4,
-            separators=(",", ": "),
-        )
-
+    res = iqqtv.main(number, appoint_url, "jp")
+    if res.data is None:
+        return CrawlerResult.failed("iqqtv")
     if "zh_cn" in all_language:
         language = "zh_cn"
-        appoint_url = json_data["iqqtv"]["jp"]["website"].replace("/jp/", "/cn/")
-
+        appoint_url = res.data.website.replace("/jp/", "/cn/")
     if "zh_tw" in all_language:
         language = "zh_tw"
-        appoint_url = json_data["iqqtv"]["jp"]["website"].replace("/jp/", "/")
+        appoint_url = res.data.website.replace("/jp/", "/")
 
-    json_data_zh = json.loads(iqqtv.main(number, appoint_url, language))
-    dic = json_data_zh["iqqtv"][language]
-    dic["originaltitle"] = json_data["iqqtv"]["jp"]["originaltitle"]
-    dic["originalplot"] = json_data["iqqtv"]["jp"]["originalplot"]
-    json_data["iqqtv"].update({"zh_cn": dic, "zh_tw": dic})
-
-    js = json.dumps(
-        json_data,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
-    return js
+    res_zh = iqqtv.main(number, appoint_url, language)
+    if res_zh.data is None:
+        return CrawlerResult.failed("iqqtv")
+    res_zh.data.originaltitle = res.data.originaltitle
+    res_zh.data.originalplot = res.data.originalplot
+    return res_zh
 
 
 if __name__ == "__main__":

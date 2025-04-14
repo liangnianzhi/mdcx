@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,6 +8,7 @@ from lxml import etree
 from models.base.web import get_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -82,11 +82,7 @@ def getMosaic(tag, title):  # 获取马赛克
     return result
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     start_time = time.time()
     website_name = "fc2"
     LogBuffer.req().write(f"-> {website_name}")
@@ -97,11 +93,11 @@ def main(
     image_download = False
     image_cut = "center"
     number = number.upper().replace("FC2PPV", "").replace("FC2-PPV-", "").replace("FC2-", "").replace("-", "").strip()
-    dic = {}
     web_info = "\n       "
     LogBuffer.info().write(" \n    🌐 fc2")
     debug_info = ""
 
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             real_url = f"https://adult.contents.fc2.com/article/{number}/"
@@ -142,34 +138,35 @@ def main(
             actor = ""
 
         try:
-            dic = {
-                "number": "FC2-" + str(number),
-                "title": title,
-                "originaltitle": title,
-                "actor": actor,
-                "outline": outline,
-                "originalplot": outline,
-                "tag": tag,
-                "release": release,
-                "year": release[:4],
-                "runtime": "",
-                "score": "",
-                "series": "FC2系列",
-                "director": "",
-                "studio": studio,
-                "publisher": studio,
-                "source": "fc2",
-                "website": real_url,
-                "actor_photo": {actor: ""},
-                "cover": cover_url,
-                "poster": poster_url,
-                "extrafanart": extrafanart,
-                "trailer": "",
-                "image_download": image_download,
-                "image_cut": image_cut,
-                "mosaic": mosaic,
-                "wanted": "",
-            }
+            movie_data = MovieData(
+                number="FC2-" + str(number),
+                title=title,
+                originaltitle=title,
+                actor=actor,
+                outline=outline,
+                originalplot=outline,
+                tag=tag,
+                release=release,
+                year=release[:4],
+                runtime="",
+                score="",
+                series="FC2系列",
+                director="",
+                studio=studio,
+                publisher=studio,
+                source="fc2",
+                website=real_url,
+                actor_photo={actor: ""},
+                cover=cover_url,
+                poster=poster_url,
+                extrafanart=extrafanart,
+                trailer="",
+                image_download=image_download,
+                image_cut=image_cut,
+                mosaic=mosaic,
+                wanted="",
+            )
+            res = CrawlerResult(site=website_name, data=movie_data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(web_info + debug_info)
 
@@ -180,21 +177,8 @@ def main(
 
     except Exception as e:
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

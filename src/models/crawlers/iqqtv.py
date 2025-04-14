@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,6 +8,7 @@ from lxml import etree
 from models.base.web import get_html
 from models.config.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -163,11 +163,7 @@ def get_real_url(html, number):
     return ""
 
 
-def main(
-    number,
-    appoint_url="",
-    language="zh_cn",
-):
+def main(number, appoint_url="", language="zh_cn") -> CrawlerResult:
     start_time = time.time()
     website_name = "iqqtv"
     LogBuffer.req().write(f"-> {website_name}[{language}]")
@@ -195,6 +191,7 @@ def main(
     LogBuffer.info().write(f" \n    🌐 iqqtv[{language}]")
     debug_info = ""
 
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             # 通过搜索获取real_url
@@ -256,35 +253,35 @@ def main(
         extrafanart = get_extrafanart(html_info)
         tag = tag.replace("无码片", "").replace("無碼片", "").replace("無修正", "")
         try:
-            dic = {
-                "number": web_number,
-                "title": title,
-                "originaltitle": title,
-                "actor": actor,
-                "outline": outline,
-                "originalplot": outline,
-                "tag": tag,
-                "release": release,
-                "year": year,
-                "runtime": runtime,
-                "score": score,
-                "series": series,
-                "director": director,
-                "studio": studio,
-                "publisher": publisher,
-                "source": "iqqtv",
-                "website": real_url,
-                "actor_photo": actor_photo,
-                "cover": cover_url,
-                "poster": "",
-                "extrafanart": extrafanart,
-                "trailer": "",
-                "image_download": image_download,
-                "image_cut": image_cut,
-                "mosaic": mosaic,
-                "wanted": "",
-            }
-
+            data = MovieData(
+                number=web_number,
+                title=title,
+                originaltitle=title,
+                actor=actor,
+                outline=outline,
+                originalplot=outline,
+                tag=tag,
+                release=release,
+                year=year,
+                runtime=runtime,
+                score=score,
+                series=series,
+                director=director,
+                studio=studio,
+                publisher=publisher,
+                source="iqqtv",
+                website=real_url,
+                actor_photo=actor_photo,
+                cover=cover_url,
+                poster="",
+                extrafanart=extrafanart,
+                trailer="",
+                image_download=image_download,
+                image_cut=image_cut,
+                mosaic=mosaic,
+                wanted="",
+            )
+            res = CrawlerResult(site=website_name, data=data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(web_info + debug_info)
 
@@ -295,21 +292,8 @@ def main(
 
     except Exception as e:
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {language: dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

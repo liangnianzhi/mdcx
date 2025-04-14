@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import random
 import re
 import time  # yapf: disable # NOQA: E402
@@ -11,6 +10,7 @@ from lxml import etree
 from models.base.web import curl_html, get_dmm_trailer
 from models.config.config import config
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 # import traceback
@@ -198,12 +198,7 @@ def get_wanted(html):
     return str(result[0]) if result else ""
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-    org_language="zh_cn",
-):
+def main(number, appoint_url="", language="jp", org_language="zh_cn") -> CrawlerResult:
     global sleep
     start_time = time.time()
     website_name = "javdb"
@@ -224,6 +219,7 @@ def main(
     web_info = "\n       "
     debug_info = ""
 
+    res = CrawlerResult.failed(website_name)
     if javdb_time > 0 and sleep:
         rr = random.randint(int(javdb_time / 2), javdb_time)
         LogBuffer.info().write(f"\n    🌐 javdb (⏱ {rr}S)")
@@ -374,38 +370,39 @@ def main(
             for each in title_rep:
                 title = title.replace(each, "").strip()
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": originaltitle,
-                    "actor": actor,
-                    "all_actor": all_actor,
-                    "outline": outline,
-                    "originalplot": outline,
-                    "tag": tag,
-                    "release": release,
-                    "year": year,
-                    "runtime": runtime,
-                    "score": score,
-                    "series": series,
-                    "director": director,
-                    "studio": studio,
-                    "publisher": publisher,
-                    "source": "javdb",
-                    "actor_photo": actor_photo,
-                    "all_actor_photo": all_actor_photo,
-                    "cover": cover_url,
-                    "poster": poster_url,
-                    "extrafanart": extrafanart,
-                    "trailer": trailer,
-                    "image_download": image_download,
-                    "image_cut": image_cut,
-                    "mosaic": mosaic,
-                    "website": website,
-                    "wanted": wanted,
-                }
+                data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=originaltitle,
+                    actor=actor,
+                    all_actor=all_actor,
+                    outline=outline,
+                    originalplot=outline,
+                    tag=tag,
+                    release=release,
+                    year=year,
+                    runtime=runtime,
+                    score=score,
+                    series=series,
+                    director=director,
+                    studio=studio,
+                    publisher=publisher,
+                    source="javdb",
+                    actor_photo=actor_photo,
+                    all_actor_photo=all_actor_photo,
+                    cover=cover_url,
+                    poster=poster_url,
+                    extrafanart=extrafanart,
+                    trailer=trailer,
+                    image_download=image_download,
+                    image_cut=image_cut,
+                    mosaic=mosaic,
+                    website=website,
+                    wanted=wanted,
+                )
                 if javdbid:
-                    dic["javdbid"] = javdbid
+                    data.javdb_id = javdbid
+                res = CrawlerResult(site=website_name, data=data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
 
@@ -417,21 +414,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,6 +8,7 @@ from lxml import etree
 
 from models.base.web import curl_html, get_dmm_trailer
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -329,11 +329,7 @@ def get_mosaic(title, actor):
     return mosaic
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     # https://freejavbt.com/VRKM-565
     start_time = time.time()
     website_name = "freejavbt"
@@ -351,6 +347,7 @@ def main(
     if appoint_url:
         real_url = appoint_url.replace("/zh/", "/").replace("/en/", "/").replace("/ja/", "/")
 
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         debug_info = f"番号地址: {real_url} "
         LogBuffer.info().write(web_info + debug_info)
@@ -396,36 +393,37 @@ def main(
         website = real_url
         mosaic = get_mosaic(title, actor)
         try:
-            dic = {
-                "number": number,
-                "title": title,
-                "originaltitle": title,
-                "actor": actor,
-                "all_actor": all_actor,
-                "outline": outline,
-                "originalplot": outline,
-                "tag": tag,
-                "release": release,
-                "year": year,
-                "runtime": runtime,
-                "score": score,
-                "series": series,
-                "director": director,
-                "studio": studio,
-                "publisher": publisher,
-                "source": "freejavbt",
-                "actor_photo": actor_photo,
-                "all_actor_photo": all_actor_photo,
-                "cover": cover_url,
-                "poster": poster_url,
-                "extrafanart": extrafanart,
-                "trailer": trailer,
-                "image_download": image_download,
-                "image_cut": image_cut,
-                "mosaic": mosaic,
-                "website": website,
-                "wanted": "",
-            }
+            movie_data = MovieData(
+                number=number,
+                title=title,
+                originaltitle=title,
+                actor=actor,
+                all_actor=all_actor,
+                outline=outline,
+                originalplot=outline,
+                tag=tag,
+                release=release,
+                year=year,
+                runtime=runtime,
+                score=score,
+                series=series,
+                director=director,
+                studio=studio,
+                publisher=publisher,
+                source="freejavbt",
+                actor_photo=actor_photo,
+                all_actor_photo=all_actor_photo,
+                cover=cover_url,
+                poster=poster_url,
+                extrafanart=extrafanart,
+                trailer=trailer,
+                image_download=image_download,
+                image_cut=image_cut,
+                mosaic=mosaic,
+                website=website,
+                wanted="",
+            )
+            res = CrawlerResult(site=website_name, data=movie_data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(web_info + debug_info)
 
@@ -437,21 +435,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":
@@ -461,4 +446,65 @@ if __name__ == "__main__":
     # print(main('ssis-118'))
     # print(main('DANDY-520', ''))    # 预告片默认低品质dm，改成高品质dmb
     # print(main('PPPD-653'))
-    print(main('SSNI-531'))  # print(main('ssis-330')) # 预告片  # print(main('n1403'))  # print(main('SKYHD-014'))       # 无预览图  # print(main('FC2-424646'))     # 无番号  # print(main('CWPBD-168'))  # print(main('BadMilfs.22.04.02'))  # print(main('vixen.19.12.10'))  # print(main('CEMD-133'))  # print(main('FC2-880652')) # 无番号  # print(main('PLA-018'))  # print(main('SIVR-060'))  # print(main('STCV-067'))  # print(main('ALDN-107'))  # print(main('DSVR-1205'))    # 无标题  # print(main('SIVR-100'))  # print(main('FC2-2787433'))  # print(main('MIDV-018'))  # print(main('MIDV-018', appoint_url='https://javdb.com/v/BnMY9'))  # print(main('SVSS-003'))  # print(main('SIVR-008'))  # print(main('blacked.21.07.03'))  # print(main('FC2-1262472'))  # 需要登录  # print(main('HUNTB-107'))  # 预告片返回url错误，只有https  # print(main('FC2-2392657'))                                                  # 需要登录  # print(main('GS-067'))                                                       # 两个同名番号  # print(main('MIDE-022'))  # print(main('KRAY-001'))  # print(main('ssis-243'))  # print(main('MIDE-900', 'https://javdb.com/v/MZp24?locale=en'))  # print(main('TD-011'))  # print(main('stars-011'))    # 发行商SOD star，下载封面  # print(main('stars-198'))  # 发行商SOD star，下载封面  # print(main('mium-748'))  # print(main('KMHRS-050'))    # 剧照第一张作为poster  # print(main('SIRO-4042'))  # print(main('snis-035'))  # print(main('vixen.18.07.18', ''))  # print(main('vixen.16.08.02', ''))  # print(main('SNIS-016', ''))  # print(main('bangbros18.19.09.17'))  # print(main('x-art.19.11.03'))  # print(main('abs-141'))  # print(main('HYSD-00083'))  # print(main('IESP-660'))  # print(main('GANA-1910'))  # print(main('heyzo-1031'))  # print(main('032020-001'))  # print(main('S2M-055'))  # print(main('LUXU-1217'))  # print(main('SSIS-001', ''))  # print(main('SSIS-090', ''))  # print(main('HYSD-00083', ''))  # print(main('IESP-660', ''))  # print(main('n1403', ''))  # print(main('GANA-1910', ''))  # print(main('heyzo-1031', ''))  # print(main_us('x-art.19.11.03'))  # print(main('032020-001', ''))  # print(main('S2M-055', ''))  # print(main('LUXU-1217', ''))  # print(main_us('x-art.19.11.03', ''))
+    print(main('SSNI-531'))
+    # print(main('ssis-330')) # 预告片
+    # print(main('n1403'))
+    # print(main('SKYHD-014'))       # 无预览图
+    # print(main('FC2-424646'))     # 无番号
+    # print(main('CWPBD-168'))
+    # print(main('BadMilfs.22.04.02'))
+    # print(main('vixen.19.12.10'))
+    # print(main('CEMD-133'))
+    # print(main('FC2-880652')) # 无番号
+    # print(main('PLA-018'))
+    # print(main('SIVR-060'))
+    # print(main('STCV-067'))
+    # print(main('ALDN-107'))
+    # print(main('DSVR-1205'))    # 无标题
+    # print(main('SIVR-100'))
+    # print(main('FC2-2787433'))
+    # print(main('MIDV-018'))
+    # print(main('MIDV-018', appoint_url='https://javdb.com/v/BnMY9'))
+    # print(main('SVSS-003'))
+    # print(main('SIVR-008'))
+    # print(main('blacked.21.07.03'))
+    # print(main('FC2-1262472'))  # 需要登录
+    # print(main('HUNTB-107'))  # 预告片返回url错误，只有https
+    # print(main('FC2-2392657'))                                                  # 需要登录
+    # print(main('GS-067'))                                                       # 两个同名番号
+    # print(main('MIDE-022'))
+    # print(main('KRAY-001'))
+    # print(main('ssis-243'))
+    # print(main('MIDE-900', 'https://javdb.com/v/MZp24?locale=en'))
+    # print(main('TD-011'))
+    # print(main('stars-011'))    # 发行商SOD star，下载封面
+    # print(main('stars-198'))  # 发行商SOD star，下载封面
+    # print(main('mium-748'))
+    # print(main('KMHRS-050'))    # 剧照第一张作为poster
+    # print(main('SIRO-4042'))
+    # print(main('snis-035'))
+    # print(main('vixen.18.07.18', ''))
+    # print(main('vixen.16.08.02', ''))
+    # print(main('SNIS-016', ''))
+    # print(main('bangbros18.19.09.17'))
+    # print(main('x-art.19.11.03'))
+    # print(main('abs-141'))
+    # print(main('HYSD-00083'))
+    # print(main('IESP-660'))
+    # print(main('GANA-1910'))
+    # print(main('heyzo-1031'))
+    # print(main('032020-001'))
+    # print(main('S2M-055'))
+    # print(main('LUXU-1217'))
+    # print(main('SSIS-001', ''))
+    # print(main('SSIS-090', ''))
+    # print(main('HYSD-00083', ''))
+    # print(main('IESP-660', ''))
+    # print(main('n1403', ''))
+    # print(main('GANA-1910', ''))
+    # print(main('heyzo-1031', ''))
+    # print(main_us('x-art.19.11.03'))
+    # print(main('032020-001', ''))
+    # print(main('S2M-055', ''))
+    # print(main('LUXU-1217', ''))
+    # print(main_us('x-art.19.11.03', ''))

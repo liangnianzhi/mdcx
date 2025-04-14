@@ -1,4 +1,6 @@
+import enum
 from dataclasses import dataclass, field
+from typing import Dict, Optional
 
 
 @dataclass
@@ -31,3 +33,62 @@ class EMbyActressInfo:
             "Overview": self.overview,
             "Taglines": self.taglines,
         }
+
+
+@dataclass
+class MovieData:
+    number: str
+    title: str
+    originaltitle: str
+    actor: str
+    outline: str
+    originalplot: str
+    tag: str
+    release: str
+    year: str
+    runtime: str
+    score: str
+    series: str
+    director: str
+    studio: str
+    publisher: str
+    source: str
+    website: str
+    cover: str
+    poster: str
+    extrafanart: list[str]
+    trailer: str
+    actor_photo: Dict[str, str]  # = field(default_factory=dict)
+    mosaic: str
+    image_download: bool  # = False
+    image_cut: str  # = "right"
+    wanted: str
+
+    # 可选字段
+    all_actor: str = ""
+    all_actor_photo: Dict[str, str] = field(default_factory=dict)
+    country: str = ""
+    javdb_id: str = ""
+
+    def update(self, other: "MovieData"):
+        """更新数据"""
+        if not isinstance(other, MovieData):
+            raise TypeError("other must be an instance of MovieData")
+        self.__dict__.update(other.__dict__)
+
+
+class Lang(enum.Enum):
+    zh_cn = "zh_cn"
+    zh_tw = "zh_tw"
+    jp = "jp"
+
+
+@dataclass
+class CrawlerResult:
+    site: str
+    data: Optional[MovieData] = None
+
+    @classmethod
+    def failed(cls, site: str) -> "CrawlerResult":
+        """创建失败的爬虫结果"""
+        return cls(site=site)

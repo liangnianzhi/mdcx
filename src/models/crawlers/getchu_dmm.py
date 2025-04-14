@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-
-import json
-
 from models.crawlers import dmm, getchu
+from models.data_models import CrawlerResult
 
 
 def main(
@@ -10,36 +8,27 @@ def main(
     appoint_url="",
     language="jp",
 ):
-    json_data_getchu = json.loads(getchu.main(number, appoint_url, "jp"))
-    json_data_new = json_data_getchu["getchu"]["jp"]
+    name = "getchu_dmm"
+    res_getchu = getchu.main(number, appoint_url, "jp")
+    data = res_getchu.data
+    if not data:
+        return CrawlerResult.failed(name)
 
-    poster = json_data_new.get("poster")
-    outline = json_data_new.get("outline")
-    if json_data_new["title"]:
-        number = json_data_new["number"]
+    poster = data.poster
+    outline = data.outline
+    if data.title:
+        number = data.number
         if number.startswith("DLID") or "dl.getchu" in appoint_url:
-            return json_data_getchu
-    json_data_dmm = json.loads(dmm.main(number, appoint_url, "jp"))
-    if json_data_dmm["dmm"]["jp"]["title"]:
-        json_data_new.update(json_data_dmm["dmm"]["jp"])
+            return res_getchu
+    res_dmm = dmm.main(number, appoint_url, "jp")
+    if res_dmm.data and res_dmm.data.title:
+        data.update(res_dmm.data)
         if poster:  # 使用 getchu 封面
-            json_data_new["poster"] = poster
+            data.poster = poster
         if outline:  # 使用 getchu 简介
-            json_data_new["outline"] = outline
-            json_data_new["originalplot"] = outline
-    return json.dumps(
-        {
-            "getchu_dmm": {
-                "zh_cn": json_data_new,
-                "zh_tw": json_data_new,
-                "jp": json_data_new,
-            }
-        },
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )
+            data.outline = outline
+            data.originalplot = outline
+    return CrawlerResult(name, data=data)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import re
 import time
 
@@ -8,6 +7,7 @@ from lxml import etree
 
 from models.base.web import get_html, get_imgsize
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -104,11 +104,7 @@ def get_real_url(html, number):
     return "", ""
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     start_time = time.time()
     website_name = "fantastica"
     LogBuffer.req().write(f"-> {website_name}")
@@ -125,6 +121,7 @@ def main(
     # search_url = 'http://fantastica-vr.com/items/search?q=FAKWM001'
     # real_url = 'http://fantastica-vr.com/items/detail/FAKWM-001'
 
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url:
             # 通过搜索获取real_url
@@ -184,37 +181,37 @@ def main(
                     poster = extrafanart[0]
                     image_download = True
             try:
-                dic = {
-                    "number": number,
-                    "title": title,
-                    "originaltitle": title,
-                    "actor": actor,
-                    "outline": outline,
-                    "originalplot": outline,
-                    "tag": tag,
-                    "release": release,
-                    "year": year,
-                    "runtime": runtime,
-                    "score": score,
-                    "series": series,
-                    "director": director,
-                    "studio": studio,
-                    "publisher": publisher,
-                    "source": "fantastica",
-                    "actor_photo": actor_photo,
-                    "cover": cover_url,
-                    "poster": poster,
-                    "extrafanart": extrafanart,
-                    "trailer": trailer,
-                    "image_download": image_download,
-                    "image_cut": image_cut,
-                    "mosaic": mosaic,
-                    "website": real_url,
-                    "wanted": "",
-                }
+                movie_data = MovieData(
+                    number=number,
+                    title=title,
+                    originaltitle=title,
+                    actor=actor,
+                    outline=outline,
+                    originalplot=outline,
+                    tag=tag,
+                    release=release,
+                    year=year,
+                    runtime=runtime,
+                    score=score,
+                    series=series,
+                    director=director,
+                    studio=studio,
+                    publisher=publisher,
+                    source="fantastica",
+                    actor_photo=actor_photo,
+                    cover=cover_url,
+                    poster=poster,
+                    extrafanart=extrafanart,
+                    trailer=trailer,
+                    image_download=image_download,
+                    image_cut=image_cut,
+                    mosaic=mosaic,
+                    website=real_url,
+                    wanted="",
+                )
+                res = CrawlerResult(site=website_name, data=movie_data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
-
             except Exception as e:
                 debug_info = f"数据生成出错: {str(e)}"
                 LogBuffer.info().write(web_info + debug_info)
@@ -222,23 +219,13 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":
     # yapf: disable
-    print(main('FAAP525'))  # 无图  # print(main('fakwm-001'))  # print(main('fakwm-064'))  # print(main('fapro-123'))
+    print(main('FAAP525'))  # 无图
+    # print(main('fakwm-001'))
+    # print(main('fakwm-064'))
+    # print(main('fapro-123'))

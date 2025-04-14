@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,6 +8,7 @@ from lxml import etree
 
 from models.base.web import get_html
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -107,11 +107,7 @@ def get_real_url(html):
     return "", ""
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     # https://faleno.jp/top/works/fsdss564/
     # https://falenogroup.com/works/votan-034/
     start_time = time.time()
@@ -144,6 +140,7 @@ def main(
         ]
     LogBuffer.info().write("\n    🌐 faleno")
     mosaic = "有码"
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         if not real_url_list:
             for search_url in search_url_list:
@@ -213,60 +210,46 @@ def main(
         else:
             raise Exception(debug_info)
         try:
-            dic = {
-                "number": number,
-                "title": title,
-                "originaltitle": title,
-                "actor": actor,
-                "outline": outline,
-                "originalplot": outline,
-                "tag": tag,
-                "release": release,
-                "year": year,
-                "runtime": runtime,
-                "score": score,
-                "series": series,
-                "director": director,
-                "studio": studio,
-                "publisher": publisher,
-                "source": "faleno",
-                "actor_photo": actor_photo,
-                "cover": cover_url,
-                "poster": poster_url,
-                "extrafanart": extrafanart,
-                "trailer": trailer,
-                "image_download": image_download,
-                "image_cut": image_cut,
-                "mosaic": mosaic,
-                "website": website,
-                "wanted": "",
-            }
+            movie_data = MovieData(
+                number=number,
+                title=title,
+                originaltitle=title,
+                actor=actor,
+                outline=outline,
+                originalplot=outline,
+                tag=tag,
+                release=release,
+                year=year,
+                runtime=runtime,
+                score=score,
+                series=series,
+                director=director,
+                studio=studio,
+                publisher=publisher,
+                source="faleno",
+                actor_photo=actor_photo,
+                cover=cover_url,
+                poster=poster_url,
+                extrafanart=extrafanart,
+                trailer=trailer,
+                image_download=image_download,
+                image_cut=image_cut,
+                mosaic=mosaic,
+                website=website,
+                wanted="",
+            )
+            res = CrawlerResult(site=website_name, data=movie_data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(web_info + debug_info)
-
         except Exception as e:
             debug_info = f"数据生成出错: {str(e)}"
             LogBuffer.info().write(web_info + debug_info)
             raise Exception(debug_info)
-
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":

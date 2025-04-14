@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import re
 import time  # yapf: disable # NOQA: E402
 
@@ -9,6 +8,7 @@ from lxml import etree
 
 from models.base.web import get_html
 from models.core.json_data import LogBuffer
+from models.data_models import CrawlerResult, MovieData
 
 urllib3.disable_warnings()  # yapf: disable
 
@@ -100,11 +100,7 @@ def get_trailer(html):  # 获取预览片
     return result[0] if result else ""
 
 
-def main(
-    number,
-    appoint_url="",
-    language="jp",
-):
+def main(number, appoint_url="", language="jp") -> CrawlerResult:
     # https://faleno.jp/top/works/fsdss564/
     # https://dahlia-av.jp/works/dldss177/
     start_time = time.time()
@@ -127,6 +123,8 @@ def main(
 
     LogBuffer.info().write("\n    🌐 dahlia")
     mosaic = "有码"
+
+    res = CrawlerResult.failed(website_name)
     try:  # 捕获主动抛出的异常
         for real_url in real_url_list:
             debug_info = f"番号地址: {real_url} "
@@ -172,34 +170,35 @@ def main(
         trailer = get_trailer(html_detail)
         website = real_url
         try:
-            dic = {
-                "number": number,
-                "title": title,
-                "originaltitle": title,
-                "actor": actor,
-                "outline": outline,
-                "originalplot": outline,
-                "tag": tag,
-                "release": release,
-                "year": year,
-                "runtime": runtime,
-                "score": score,
-                "series": series,
-                "director": director,
-                "studio": studio,
-                "publisher": publisher,
-                "source": "dahlia",
-                "actor_photo": actor_photo,
-                "cover": cover_url,
-                "poster": poster_url,
-                "extrafanart": extrafanart,
-                "trailer": trailer,
-                "image_download": image_download,
-                "image_cut": image_cut,
-                "mosaic": mosaic,
-                "website": website,
-                "wanted": "",
-            }
+            movie_data = MovieData(
+                number=number,
+                title=title,
+                originaltitle=title,
+                actor=actor,
+                outline=outline,
+                originalplot=outline,
+                tag=tag,
+                release=release,
+                year=year,
+                runtime=runtime,
+                score=score,
+                series=series,
+                director=director,
+                studio=studio,
+                publisher=publisher,
+                source="dahlia",
+                actor_photo=actor_photo,
+                cover=cover_url,
+                poster=poster_url,
+                extrafanart=extrafanart,
+                trailer=trailer,
+                image_download=image_download,
+                image_cut=image_cut,
+                mosaic=mosaic,
+                website=website,
+                wanted="",
+            )
+            res = CrawlerResult(site=website_name, data=movie_data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(web_info + debug_info)
 
@@ -211,21 +210,8 @@ def main(
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        dic = {
-            "title": "",
-            "cover": "",
-            "website": "",
-        }
-    dic = {website_name: {"zh_cn": dic, "zh_tw": dic, "jp": dic}}
-    js = json.dumps(
-        dic,
-        ensure_ascii=False,
-        sort_keys=False,
-        indent=4,
-        separators=(",", ": "),
-    )  # .encode('UTF-8')
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
-    return js
+    return res
 
 
 if __name__ == "__main__":
