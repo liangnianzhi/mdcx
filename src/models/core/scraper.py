@@ -4,7 +4,7 @@ import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
+from typing import Optional, cast
 
 from PyQt5.QtWidgets import QMessageBox
 
@@ -35,16 +35,13 @@ from models.core.file import (
 from models.core.flags import Flags
 from models.core.image import add_mark, extrafanart_copy2, extrafanart_extras_copy
 from models.core.json_data import JsonData, LogBuffer
+from models.core.json_data_handlers import deal_some_field, replace_special_word, replace_word, show_movie_info
 from models.core.nfo import get_nfo_data, write_nfo
 from models.core.translate import translate_actor, translate_info, translate_title_outline
 from models.core.utils import (
-    deal_some_field,
     get_movie_path_setting,
     get_video_size,
-    replace_special_word,
-    replace_word,
     show_data_result,
-    show_movie_info,
 )
 from models.core.web import extrafanart_download, fanart_download, poster_download, thumb_download, trailer_download
 from models.data_models import FileMode
@@ -63,7 +60,7 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
 
     # 获取文件信息
     json_data, movie_number, folder_old_path, file_name, file_ex, sub_list, file_show_name, file_show_path = file_info
-
+    json_data = cast(JsonData, json_data)
     # 获取设置的媒体目录、失败目录、成功目录
     (
         _,
@@ -76,8 +73,10 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
     json_data["failed_folder"] = failed_folder
 
     # 检查文件大小
-    result, json_data = check_file(json_data, file_path, file_escape_size)
-    if not result:
+    valid, outline, tag = check_file(file_path, file_escape_size)
+    if not valid:
+        json_data["outline"] = outline
+        json_data["tag"] = tag
         return False, json_data
 
     # 读取模式
@@ -85,12 +84,13 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
     json_data["nfo_can_translate"] = True
     nfo_update = False
     if config.main_mode == 4:
-        result, json_data = get_nfo_data(json_data, file_path, movie_number)
-        if result:  # 有nfo
+        success, nfo_data = get_nfo_data(json_data["appoint_number"], file_path, movie_number)
+        json_data.update(nfo_data)  # type: ignore
+        if success:  # 有nfo
             movie_number = json_data["number"]
             nfo_update = True
             if "has_nfo_update" not in read_mode:  # 不更新并返回
-                show_data_result(json_data, start_time)
+                show_data_result(json_data["title"], json_data["fields_info"], start_time)
                 show_movie_info(json_data)
                 LogBuffer.log().write(f"\n 🙉 [Movie] {file_path}")
                 save_success_list(file_path, file_path)  # 保存成功列表
@@ -169,7 +169,7 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
 
     # 显示json_data结果或日志
     json_data["failed_folder"] = failed_folder
-    if not show_data_result(json_data, start_time):
+    if not show_data_result(json_data["title"], json_data["fields_info"], start_time):
         return False, json_data  # 返回MDCx1_1main, 继续处理下一个文件
 
     # 映射或翻译
@@ -184,7 +184,10 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
         replace_word(json_data)
 
     # 更新视频分辨率
-    get_video_size(json_data, file_path)
+    definition, d_4K, tag = get_video_size(json_data["tag"], file_path)
+    json_data["definition"] = definition
+    json_data["_4K"] = d_4K
+    json_data["tag"] = tag
 
     # 显示json_data内容
     show_movie_info(json_data)

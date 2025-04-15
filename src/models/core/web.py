@@ -19,7 +19,7 @@ from models.base.utils import get_used_time
 from models.base.web import check_url, get_amazon_data, get_big_pic_by_google, get_html, get_imgsize, multi_download
 from models.config.config import config
 from models.core.flags import Flags
-from models.core.json_data import ImageContext, JsonData, LogBuffer
+from models.core.json_data import ImageData, LogBuffer
 from models.core.utils import convert_half
 from models.signals import signal
 
@@ -107,11 +107,243 @@ def _mutil_extrafanart_download_thread(task: tuple[str, str, str, str]) -> bool:
     return False
 
 
-def get_big_pic_by_amazon(
-    json_data: JsonData,
-    originaltitle_amazon: str,
-    actor_amazon: str,
-) -> str:
+def trailer_download(
+    number: str,
+    trailer_url: str,
+    trailer_from: str,
+    folder_new_path: str,
+    folder_old_path: str,
+    naming_rule: str,
+):
+    start_time = time.time()
+    download_files = config.download_files
+    keep_files = config.keep_files
+    trailer_name = config.trailer_name
+    trailer_old_folder_path = os.path.join(folder_old_path, "trailers")
+    trailer_new_folder_path = os.path.join(folder_new_path, "trailers")
+
+    # 预告片名字不含视频文件名（只让一个视频去下载即可）
+    if trailer_name == 1:
+        trailer_folder_path = os.path.join(folder_new_path, "trailers")
+        trailer_file_name = "trailer.mp4"
+        trailer_file_path = os.path.join(trailer_folder_path, trailer_file_name)
+
+        # 预告片文件夹已在已处理列表时，返回（这时只需要下载一个，其他分集不需要下载）
+        if trailer_folder_path in Flags.trailer_deal_set:
+            return
+        Flags.trailer_deal_set.add(trailer_folder_path)
+
+        # 不下载不保留时删除返回
+        if "trailer" not in download_files and "trailer" not in keep_files:
+            # 删除目标文件夹即可，其他文件夹和文件已经删除了
+            if os.path.exists(trailer_folder_path):
+                shutil.rmtree(trailer_folder_path, ignore_errors=True)
+            return
+
+    else:
+        # 预告片带文件名（每个视频都有机会下载，如果已有下载好的，则使用已下载的）
+        trailer_file_name = naming_rule + "-trailer.mp4"
+        trailer_folder_path = folder_new_path
+        trailer_file_path = os.path.join(trailer_folder_path, trailer_file_name)
+
+        # 不下载不保留时删除返回
+        if "trailer" not in download_files and "trailer" not in keep_files:
+            # 删除目标文件，删除预告片旧文件夹、新文件夹（deal old file时没删除）
+            if os.path.exists(trailer_file_path):
+                delete_file(trailer_file_path)
+            if os.path.exists(trailer_old_folder_path):
+                shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
+            if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(trailer_new_folder_path):
+                shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
+            return
+
+    # 选择保留文件，当存在文件时，不下载。（done trailer path 未设置时，把当前文件设置为 done trailer path，以便其他分集复制）
+    if "trailer" in keep_files and os.path.exists(trailer_file_path):
+        if not Flags.file_done_dic.get(number).get("trailer"):
+            Flags.file_done_dic[number].update({"trailer": trailer_file_path})
+            # 带文件名时，删除掉新、旧文件夹，用不到了。（其他分集如果没有，可以复制第一个文件的预告片。此时不删，没机会删除了）
+            if trailer_name == 0:
+                if os.path.exists(trailer_old_folder_path):
+                    shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
+                if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(trailer_new_folder_path):
+                    shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
+        LogBuffer.log().write(f"\n 🍀 Trailer done! (old)({get_used_time(start_time)}s) ")
+        return
+
+    # 带文件名时，选择下载不保留，或者选择保留但没有预告片，检查是否有其他分集已下载或本地预告片
+    # 选择下载不保留，当没有下载成功时，不会删除不保留的文件
+    done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
+    if trailer_name == 0 and done_trailer_path and os.path.exists(done_trailer_path):
+        if os.path.exists(trailer_file_path):
+            delete_file(trailer_file_path)
+        copy_file(done_trailer_path, trailer_file_path)
+        LogBuffer.log().write(f"\n 🍀 Trailer done! (copy trailer)({get_used_time(start_time)}s)")
+        return
+
+    # 不下载时返回（选择不下载保留，但本地并不存在，此时返回）
+    if "trailer," not in download_files:
+        return
+
+    # 下载预告片,检测链接有效性
+    content_length = check_url(trailer_url, length=True)
+    if content_length:
+        # 创建文件夹
+        if trailer_name == 1 and not os.path.exists(trailer_folder_path):
+            os.makedirs(trailer_folder_path)
+
+        # 开始下载
+        download_files = config.download_files
+        signal.show_traceback_log(f"🍔 {number} download trailer... {trailer_url}")
+        trailer_file_path_temp = trailer_file_path
+        if os.path.exists(trailer_file_path):
+            trailer_file_path_temp = trailer_file_path + ".[DOWNLOAD].mp4"
+        if download_file_with_filepath(trailer_url, trailer_file_path_temp, trailer_folder_path):
+            file_size = os.path.getsize(trailer_file_path_temp)
+            if file_size >= content_length or "ignore_size" in download_files:
+                LogBuffer.log().write(
+                    f"\n 🍀 Trailer done! ({trailer_from} {file_size}/{content_length})({get_used_time(start_time)}s) "
+                )
+                signal.show_traceback_log(f"✅ {number} trailer done!")
+                if trailer_file_path_temp != trailer_file_path:
+                    move_file(trailer_file_path_temp, trailer_file_path)
+                    delete_file(trailer_file_path_temp)
+                done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
+                if not done_trailer_path:
+                    Flags.file_done_dic[number].update({"trailer": trailer_file_path})
+                    if trailer_name == 0:  # 带文件名，已下载成功，删除掉那些不用的文件夹即可
+                        if os.path.exists(trailer_old_folder_path):
+                            shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
+                        if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(
+                            trailer_new_folder_path
+                        ):
+                            shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
+                return
+            else:
+                LogBuffer.log().write(
+                    f"\n 🟠 Trailer size is incorrect! delete it! ({trailer_from} {file_size}/{content_length}) "
+                )
+
+        # 删除下载失败的文件
+        delete_file(trailer_file_path_temp)
+        LogBuffer.log().write(f"\n 🟠 Trailer download failed! ({trailer_url}) ")
+
+    if os.path.exists(trailer_file_path):  # 使用旧文件
+        done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
+        if not done_trailer_path:
+            Flags.file_done_dic[number].update({"trailer": trailer_file_path})
+            if trailer_name == 0:  # 带文件名，已下载成功，删除掉那些不用的文件夹即可
+                if os.path.exists(trailer_old_folder_path):
+                    shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
+                if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(trailer_new_folder_path):
+                    shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
+        LogBuffer.log().write("\n 🟠 Trailer download failed! 将继续使用之前的本地文件！")
+        LogBuffer.log().write(f"\n 🍀 Trailer done! (old)({get_used_time(start_time)}s)")
+        return
+
+
+def extrafanart_download(extrafanart_list: list[str], extrafanart_from: str, folder_new_path: str) -> Optional[bool]:
+    start_time = time.time()
+    download_files = config.download_files
+    keep_files = config.keep_files
+    extrafanart_folder_path = os.path.join(folder_new_path, "extrafanart")
+
+    # 不下载不保留时删除返回
+    if "extrafanart" not in download_files and "extrafanart" not in keep_files:
+        if os.path.exists(extrafanart_folder_path):
+            shutil.rmtree(extrafanart_folder_path, ignore_errors=True)
+        return
+
+    # 本地存在 extrafanart_folder，且勾选保留旧文件时，不下载
+    if "extrafanart" in keep_files and os.path.exists(extrafanart_folder_path):
+        LogBuffer.log().write(f"\n 🍀 Extrafanart done! (old)({get_used_time(start_time)}s) ")
+        return True
+
+    # 如果 extrafanart 不下载
+    if "extrafanart" not in download_files:
+        return True
+
+    # 检测链接有效性
+    if extrafanart_list and check_url(extrafanart_list[0]):
+        extrafanart_folder_path_temp = extrafanart_folder_path
+        if os.path.exists(extrafanart_folder_path_temp):
+            extrafanart_folder_path_temp = extrafanart_folder_path + "[DOWNLOAD]"
+            if not os.path.exists(extrafanart_folder_path_temp):
+                os.makedirs(extrafanart_folder_path_temp)
+        else:
+            os.makedirs(extrafanart_folder_path_temp)
+
+        extrafanart_count = 0
+        extrafanart_count_succ = 0
+        task_list = []
+        for extrafanart_url in extrafanart_list:
+            extrafanart_count += 1
+            extrafanart_name = "fanart" + str(extrafanart_count) + ".jpg"
+            extrafanart_file_path = os.path.join(extrafanart_folder_path_temp, extrafanart_name)
+            task_list.append((extrafanart_url, extrafanart_file_path, extrafanart_folder_path_temp, extrafanart_name))
+            task_list = cast(list[tuple[str, str, str, str]], task_list)
+        extrafanart_pool = ThreadPoolExecutor(20)  # 剧照下载线程池
+        result = extrafanart_pool.map(_mutil_extrafanart_download_thread, task_list)
+        for res in result:
+            if res:
+                extrafanart_count_succ += 1
+        if extrafanart_count_succ == extrafanart_count:
+            if extrafanart_folder_path_temp != extrafanart_folder_path:
+                shutil.rmtree(extrafanart_folder_path)
+                os.rename(extrafanart_folder_path_temp, extrafanart_folder_path)
+            LogBuffer.log().write(
+                f"\n 🍀 ExtraFanart done! ({extrafanart_from} {extrafanart_count_succ}/{extrafanart_count})({get_used_time(start_time)}s)"
+            )
+            return True
+        else:
+            LogBuffer.log().write(
+                f"\n 🟠 ExtraFanart download failed! ({extrafanart_from} {extrafanart_count_succ}/{extrafanart_count})({get_used_time(start_time)}s)"
+            )
+            if extrafanart_folder_path_temp != extrafanart_folder_path:
+                shutil.rmtree(extrafanart_folder_path_temp)
+            else:
+                LogBuffer.log().write(f"\n 🍀 ExtraFanart done! (incomplete)({get_used_time(start_time)}s)")
+                return False
+        LogBuffer.log().write("\n 🟠 ExtraFanart download failed! 将继续使用之前的本地文件！")
+    if os.path.exists(extrafanart_folder_path):  # 使用旧文件
+        LogBuffer.log().write(f"\n 🍀 ExtraFanart done! (old)({get_used_time(start_time)}s)")
+        return True
+
+
+def show_netstatus() -> None:
+    signal.show_net_info(time.strftime("%Y-%m-%d %H:%M:%S").center(80, "="))
+    proxy_type = ""
+    retry_count = 0
+    proxy = ""
+    timeout = 0
+    try:
+        proxy_type, proxy, timeout, retry_count = config.type, config.proxy, config.timeout, config.retry
+    except:
+        signal.show_traceback_log(traceback.format_exc())
+        signal.show_net_info(traceback.format_exc())
+    if proxy == "" or proxy_type == "" or proxy_type == "no":
+        signal.show_net_info(
+            f" 当前网络状态：❌ 未启用代理\n   类型： {str(proxy_type)}    地址：{str(proxy)}    超时时间：{str(timeout)}    重试次数：{str(retry_count)}"
+        )
+    else:
+        signal.show_net_info(
+            f" 当前网络状态：✅ 已启用代理\n   类型： {proxy_type}    地址：{proxy}    超时时间：{str(timeout)}    重试次数：{str(retry_count)}"
+        )
+    signal.show_net_info("=" * 80)
+
+
+def check_proxyChange() -> None:
+    new_proxy = (config.type, config.proxy, config.timeout, config.retry)
+    if Flags.current_proxy:
+        if new_proxy != Flags.current_proxy:
+            signal.show_net_info("\n🌈 代理设置已改变：")
+            show_netstatus()
+    Flags.current_proxy = new_proxy
+
+
+# 以下需要 json_data
+
+
+def get_big_pic_by_amazon(json_data: ImageData, originaltitle_amazon: str, actor_amazon: list[str]) -> str:
     if not originaltitle_amazon or not actor_amazon:
         return ""
     hd_pic_url = ""
@@ -284,141 +516,7 @@ def get_big_pic_by_amazon(
     return hd_pic_url
 
 
-def trailer_download(
-    number: str,
-    trailer_url: str,
-    trailer_from: str,
-    folder_new_path: str,
-    folder_old_path: str,
-    naming_rule: str,
-):
-    start_time = time.time()
-    download_files = config.download_files
-    keep_files = config.keep_files
-    trailer_name = config.trailer_name
-    trailer_old_folder_path = os.path.join(folder_old_path, "trailers")
-    trailer_new_folder_path = os.path.join(folder_new_path, "trailers")
-
-    # 预告片名字不含视频文件名（只让一个视频去下载即可）
-    if trailer_name == 1:
-        trailer_folder_path = os.path.join(folder_new_path, "trailers")
-        trailer_file_name = "trailer.mp4"
-        trailer_file_path = os.path.join(trailer_folder_path, trailer_file_name)
-
-        # 预告片文件夹已在已处理列表时，返回（这时只需要下载一个，其他分集不需要下载）
-        if trailer_folder_path in Flags.trailer_deal_set:
-            return
-        Flags.trailer_deal_set.add(trailer_folder_path)
-
-        # 不下载不保留时删除返回
-        if "trailer" not in download_files and "trailer" not in keep_files:
-            # 删除目标文件夹即可，其他文件夹和文件已经删除了
-            if os.path.exists(trailer_folder_path):
-                shutil.rmtree(trailer_folder_path, ignore_errors=True)
-            return
-
-    else:
-        # 预告片带文件名（每个视频都有机会下载，如果已有下载好的，则使用已下载的）
-        trailer_file_name = naming_rule + "-trailer.mp4"
-        trailer_folder_path = folder_new_path
-        trailer_file_path = os.path.join(trailer_folder_path, trailer_file_name)
-
-        # 不下载不保留时删除返回
-        if "trailer" not in download_files and "trailer" not in keep_files:
-            # 删除目标文件，删除预告片旧文件夹、新文件夹（deal old file时没删除）
-            if os.path.exists(trailer_file_path):
-                delete_file(trailer_file_path)
-            if os.path.exists(trailer_old_folder_path):
-                shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
-            if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(trailer_new_folder_path):
-                shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
-            return
-
-    # 选择保留文件，当存在文件时，不下载。（done trailer path 未设置时，把当前文件设置为 done trailer path，以便其他分集复制）
-    if "trailer" in keep_files and os.path.exists(trailer_file_path):
-        if not Flags.file_done_dic.get(number).get("trailer"):
-            Flags.file_done_dic[number].update({"trailer": trailer_file_path})
-            # 带文件名时，删除掉新、旧文件夹，用不到了。（其他分集如果没有，可以复制第一个文件的预告片。此时不删，没机会删除了）
-            if trailer_name == 0:
-                if os.path.exists(trailer_old_folder_path):
-                    shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
-                if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(trailer_new_folder_path):
-                    shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
-        LogBuffer.log().write(f"\n 🍀 Trailer done! (old)({get_used_time(start_time)}s) ")
-        return
-
-    # 带文件名时，选择下载不保留，或者选择保留但没有预告片，检查是否有其他分集已下载或本地预告片
-    # 选择下载不保留，当没有下载成功时，不会删除不保留的文件
-    done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
-    if trailer_name == 0 and done_trailer_path and os.path.exists(done_trailer_path):
-        if os.path.exists(trailer_file_path):
-            delete_file(trailer_file_path)
-        copy_file(done_trailer_path, trailer_file_path)
-        LogBuffer.log().write(f"\n 🍀 Trailer done! (copy trailer)({get_used_time(start_time)}s)")
-        return
-
-    # 不下载时返回（选择不下载保留，但本地并不存在，此时返回）
-    if "trailer," not in download_files:
-        return
-
-    # 下载预告片,检测链接有效性
-    content_length = check_url(trailer_url, length=True)
-    if content_length:
-        # 创建文件夹
-        if trailer_name == 1 and not os.path.exists(trailer_folder_path):
-            os.makedirs(trailer_folder_path)
-
-        # 开始下载
-        download_files = config.download_files
-        signal.show_traceback_log(f"🍔 {number} download trailer... {trailer_url}")
-        trailer_file_path_temp = trailer_file_path
-        if os.path.exists(trailer_file_path):
-            trailer_file_path_temp = trailer_file_path + ".[DOWNLOAD].mp4"
-        if download_file_with_filepath(trailer_url, trailer_file_path_temp, trailer_folder_path):
-            file_size = os.path.getsize(trailer_file_path_temp)
-            if file_size >= content_length or "ignore_size" in download_files:
-                LogBuffer.log().write(
-                    f"\n 🍀 Trailer done! ({trailer_from} {file_size}/{content_length})({get_used_time(start_time)}s) "
-                )
-                signal.show_traceback_log(f"✅ {number} trailer done!")
-                if trailer_file_path_temp != trailer_file_path:
-                    move_file(trailer_file_path_temp, trailer_file_path)
-                    delete_file(trailer_file_path_temp)
-                done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
-                if not done_trailer_path:
-                    Flags.file_done_dic[number].update({"trailer": trailer_file_path})
-                    if trailer_name == 0:  # 带文件名，已下载成功，删除掉那些不用的文件夹即可
-                        if os.path.exists(trailer_old_folder_path):
-                            shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
-                        if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(
-                            trailer_new_folder_path
-                        ):
-                            shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
-                return
-            else:
-                LogBuffer.log().write(
-                    f"\n 🟠 Trailer size is incorrect! delete it! ({trailer_from} {file_size}/{content_length}) "
-                )
-
-        # 删除下载失败的文件
-        delete_file(trailer_file_path_temp)
-        LogBuffer.log().write(f"\n 🟠 Trailer download failed! ({trailer_url}) ")
-
-    if os.path.exists(trailer_file_path):  # 使用旧文件
-        done_trailer_path = Flags.file_done_dic.get(number).get("trailer")
-        if not done_trailer_path:
-            Flags.file_done_dic[number].update({"trailer": trailer_file_path})
-            if trailer_name == 0:  # 带文件名，已下载成功，删除掉那些不用的文件夹即可
-                if os.path.exists(trailer_old_folder_path):
-                    shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
-                if trailer_new_folder_path != trailer_old_folder_path and os.path.exists(trailer_new_folder_path):
-                    shutil.rmtree(trailer_new_folder_path, ignore_errors=True)
-        LogBuffer.log().write("\n 🟠 Trailer download failed! 将继续使用之前的本地文件！")
-        LogBuffer.log().write(f"\n 🍀 Trailer done! (old)({get_used_time(start_time)}s)")
-        return
-
-
-def _get_big_thumb(json_data: ImageContext) -> ImageContext:
+def _get_big_thumb(json_data: ImageData) -> ImageData:
     """
     获取背景大图：
     1，官网图片
@@ -515,7 +613,7 @@ def _get_big_thumb(json_data: ImageContext) -> ImageContext:
     return json_data
 
 
-def _get_big_poster(json_data: JsonData) -> JsonData:
+def _get_big_poster(json_data: ImageData) -> ImageData:
     start_time = time.time()
 
     # 未勾选下载高清图poster时，返回
@@ -602,7 +700,7 @@ def _get_big_poster(json_data: JsonData) -> JsonData:
     return json_data
 
 
-def thumb_download(json_data: ImageContext, folder_new_path: str, thumb_final_path: str) -> bool:
+def thumb_download(json_data: ImageData, folder_new_path: str, thumb_final_path: str) -> bool:
     start_time = time.time()
     poster_path = json_data["poster_path"]
     thumb_path = json_data["thumb_path"]
@@ -719,7 +817,7 @@ def thumb_download(json_data: ImageContext, folder_new_path: str, thumb_final_pa
             return False
 
 
-def poster_download(json_data: JsonData, folder_new_path: str, poster_final_path: str) -> bool:
+def poster_download(json_data: ImageData, folder_new_path: str, poster_final_path: str) -> bool:
     start_time = time.time()
     download_files = config.download_files
     keep_files = config.keep_files
@@ -869,7 +967,7 @@ def poster_download(json_data: JsonData, folder_new_path: str, poster_final_path
             return False
 
 
-def fanart_download(json_data: JsonData, fanart_final_path: str) -> bool:
+def fanart_download(json_data: ImageData, fanart_final_path: str) -> bool:
     """
     复制thumb为fanart
     """
@@ -941,102 +1039,3 @@ def fanart_download(json_data: JsonData, fanart_final_path: str) -> bool:
                     "Fanart 下载失败！你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」"
                 )
                 return False
-
-
-def extrafanart_download(extrafanart_list: list[str], extrafanart_from: str, folder_new_path: str) -> Optional[bool]:
-    start_time = time.time()
-    download_files = config.download_files
-    keep_files = config.keep_files
-    extrafanart_folder_path = os.path.join(folder_new_path, "extrafanart")
-
-    # 不下载不保留时删除返回
-    if "extrafanart" not in download_files and "extrafanart" not in keep_files:
-        if os.path.exists(extrafanart_folder_path):
-            shutil.rmtree(extrafanart_folder_path, ignore_errors=True)
-        return
-
-    # 本地存在 extrafanart_folder，且勾选保留旧文件时，不下载
-    if "extrafanart" in keep_files and os.path.exists(extrafanart_folder_path):
-        LogBuffer.log().write(f"\n 🍀 Extrafanart done! (old)({get_used_time(start_time)}s) ")
-        return True
-
-    # 如果 extrafanart 不下载
-    if "extrafanart" not in download_files:
-        return True
-
-    # 检测链接有效性
-    if extrafanart_list and check_url(extrafanart_list[0]):
-        extrafanart_folder_path_temp = extrafanart_folder_path
-        if os.path.exists(extrafanart_folder_path_temp):
-            extrafanart_folder_path_temp = extrafanart_folder_path + "[DOWNLOAD]"
-            if not os.path.exists(extrafanart_folder_path_temp):
-                os.makedirs(extrafanart_folder_path_temp)
-        else:
-            os.makedirs(extrafanart_folder_path_temp)
-
-        extrafanart_count = 0
-        extrafanart_count_succ = 0
-        task_list = []
-        for extrafanart_url in extrafanart_list:
-            extrafanart_count += 1
-            extrafanart_name = "fanart" + str(extrafanart_count) + ".jpg"
-            extrafanart_file_path = os.path.join(extrafanart_folder_path_temp, extrafanart_name)
-            task_list.append((extrafanart_url, extrafanart_file_path, extrafanart_folder_path_temp, extrafanart_name))
-            task_list = cast(list[tuple[str, str, str, str]], task_list)
-        extrafanart_pool = ThreadPoolExecutor(20)  # 剧照下载线程池
-        result = extrafanart_pool.map(_mutil_extrafanart_download_thread, task_list)
-        for res in result:
-            if res:
-                extrafanart_count_succ += 1
-        if extrafanart_count_succ == extrafanart_count:
-            if extrafanart_folder_path_temp != extrafanart_folder_path:
-                shutil.rmtree(extrafanart_folder_path)
-                os.rename(extrafanart_folder_path_temp, extrafanart_folder_path)
-            LogBuffer.log().write(
-                f"\n 🍀 ExtraFanart done! ({extrafanart_from} {extrafanart_count_succ}/{extrafanart_count})({get_used_time(start_time)}s)"
-            )
-            return True
-        else:
-            LogBuffer.log().write(
-                f"\n 🟠 ExtraFanart download failed! ({extrafanart_from} {extrafanart_count_succ}/{extrafanart_count})({get_used_time(start_time)}s)"
-            )
-            if extrafanart_folder_path_temp != extrafanart_folder_path:
-                shutil.rmtree(extrafanart_folder_path_temp)
-            else:
-                LogBuffer.log().write(f"\n 🍀 ExtraFanart done! (incomplete)({get_used_time(start_time)}s)")
-                return False
-        LogBuffer.log().write("\n 🟠 ExtraFanart download failed! 将继续使用之前的本地文件！")
-    if os.path.exists(extrafanart_folder_path):  # 使用旧文件
-        LogBuffer.log().write(f"\n 🍀 ExtraFanart done! (old)({get_used_time(start_time)}s)")
-        return True
-
-
-def show_netstatus() -> None:
-    signal.show_net_info(time.strftime("%Y-%m-%d %H:%M:%S").center(80, "="))
-    proxy_type = ""
-    retry_count = 0
-    proxy = ""
-    timeout = 0
-    try:
-        proxy_type, proxy, timeout, retry_count = config.type, config.proxy, config.timeout, config.retry
-    except:
-        signal.show_traceback_log(traceback.format_exc())
-        signal.show_net_info(traceback.format_exc())
-    if proxy == "" or proxy_type == "" or proxy_type == "no":
-        signal.show_net_info(
-            f" 当前网络状态：❌ 未启用代理\n   类型： {str(proxy_type)}    地址：{str(proxy)}    超时时间：{str(timeout)}    重试次数：{str(retry_count)}"
-        )
-    else:
-        signal.show_net_info(
-            f" 当前网络状态：✅ 已启用代理\n   类型： {proxy_type}    地址：{proxy}    超时时间：{str(timeout)}    重试次数：{str(retry_count)}"
-        )
-    signal.show_net_info("=" * 80)
-
-
-def check_proxyChange() -> None:
-    new_proxy = (config.type, config.proxy, config.timeout, config.retry)
-    if Flags.current_proxy:
-        if new_proxy != Flags.current_proxy:
-            signal.show_net_info("\n🌈 代理设置已改变：")
-            show_netstatus()
-    Flags.current_proxy = new_proxy

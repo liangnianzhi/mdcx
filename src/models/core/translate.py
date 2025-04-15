@@ -16,7 +16,7 @@ from models.base.web import get_html, post_html
 from models.config.config import config
 from models.config.resources import resources
 from models.core.flags import Flags
-from models.core.json_data import JsonData, LogBuffer
+from models.core.json_data import LogBuffer, TranslateData
 from models.core.web import get_actorname_from_avwiki, get_yesjav_title, google_translate
 from models.signals import signal
 
@@ -24,156 +24,102 @@ deepl_result = {}
 REGEX_KANA = re.compile(r"[\u3040-\u30ff]")  # 平假名/片假名
 
 
-def youdao_translate(title: str, outline: str):
-    url = "https://fanyi.youdao.com/translate?smartresult=dict&smartresult=rule"
-    msg = f"{title}\n{outline}"
-    lts = str(int(time.time() * 1000))
-    salt = lts + str(random.randint(0, 10))
-    sign = hashlib.md5(("fanyideskweb" + msg + salt + config.youdaokey).encode("utf-8")).hexdigest()
+def translate_title_outline(json_data: TranslateData, movie_number: str):
+    title_language = config.title_language
+    title_translate = config.title_translate
+    outline_language = config.outline_language
+    outline_translate = config.outline_translate
+    translate_by = config.translate_by
+    if title_language == "jp" and outline_language == "jp":
+        return
+    trans_title = ""
+    trans_outline = ""
+    title_sehua = config.title_sehua
+    title_sehua_zh = config.title_sehua_zh
+    title_yesjav = config.title_yesjav
+    json_data_title_language = langid.classify(json_data["title"])[0]
 
-    data = {
-        "i": msg,
-        "from": "AUTO",
-        "to": "zh-CHS",
-        "smartresult": "dict",
-        "client": "fanyideskweb",
-        "salt": salt,
-        "sign": sign,
-        "lts": lts,
-        "bv": "c6b8c998b2cbaa29bd94afc223bc106c",
-        "doctype": "json",
-        "version": "2.1",
-        "keyfrom": "fanyi.web",
-        "ue": "UTF-8",
-        "typoResult": "true",
-        "action": "FY_BY_CLICKBUTTION",
-    }
-    headers = {
-        "Cookie": random.choice(
-            [
-                "OUTFOX_SEARCH_USER_ID=833904829@10.169.0.84",
-                "OUTFOX_SEARCH_USER_ID=-10218418@11.136.67.24;",
-                "OUTFOX_SEARCH_USER_ID=1989505748@10.108.160.19;",
-                "OUTFOX_SEARCH_USER_ID=2072418438@218.82.240.196;",
-                "OUTFOX_SEARCH_USER_ID=1768574849@220.181.76.83;",
-                "OUTFOX_SEARCH_USER_ID=-2153895048@10.168.8.76;",
-            ]
-        ),
-        "Referer": "https://fanyi.youdao.com/?keyfrom=dict2.top",
-    }
-    headers_o = config.headers
-    headers.update(headers_o)
-    result, res = post_html(url, data=data, headers=headers, json_data=True)
-    if not result:
-        return title, outline, f"请求失败！可能是被封了，可尝试更换代理！错误：{res}"
-    else:
-        assert not isinstance(res, str)
-        translateResult = res.get("translateResult")
-        if not translateResult:
-            return title, outline, f"返回数据未找到翻译结果！返回内容：{res}"
-        else:
-            list_count = len(translateResult)
-            if list_count:
-                i = 0
-                if title:
-                    i = 1
-                    title_result_list = translateResult[0]
-                    title_list = [a.get("tgt") for a in title_result_list]
-                    title_temp = "".join(title_list)
-                    if title_temp:
-                        title = title_temp
-                if outline:
-                    outline_temp = ""
-                    for j in range(i, list_count):
-                        outline_result_list = translateResult[j]
-                        outline_list = [a.get("tgt") for a in outline_result_list]
-                        outline_temp += "".join(outline_list) + "\n"
-                    outline_temp = outline_temp.strip("\n")
-                    if outline_temp:
-                        outline = outline_temp
-    return title, outline.strip("\n"), ""
+    # 处理title
+    if title_language != "jp":
+        movie_title = ""
 
-
-def _deepl_trans_thread(
-    ls: str,
-    title: str,
-    outline: str,
-    file_path: str,
-):
-    global deepl_result
-    result = ""
-    try:
-        if title:
-            title = deepl.translate(source_language=ls, target_language="ZH", text=title)
-        if outline:
-            outline = deepl.translate(source_language=ls, target_language="ZH", text=outline)
-    except Exception as e:
-        result = f"网页接口请求失败! 错误：{e}"
-        print(title, outline, f"网页接口请求失败! 错误：{e}")
-    deepl_result[file_path] = (title, outline, result)
-
-
-def deepl_translate(
-    title: str,
-    outline: str,
-    ls="JA",
-    file_path: str = "",
-):
-    global deepl_result
-    deepl_key = config.deepl_key
-    if not deepl_key:
-        if file_path:
-            t_deepl = threading.Thread(target=_deepl_trans_thread, args=(ls, title, outline, file_path))
-            t_deepl.setDaemon(True)
-            t_deepl.start()
-            t_deepl.join(timeout=config.timeout)
-            t, o, r = title, outline, "翻译失败或超时！"
-            if deepl_result.get(file_path):
-                t, o, r = deepl_result[file_path]
-            return t, o, r
-        else:
+        # 匹配本地高质量标题(色花标题数据)
+        if title_sehua_zh == "on" or (json_data_title_language == "ja" and title_sehua == "on"):
+            start_time = time.time()
             try:
-                if title:
-                    title = deepl.translate(source_language=ls, target_language="ZH", text=title)
-                if outline:
-                    outline = deepl.translate(source_language=ls, target_language="ZH", text=outline)
-                return title, outline, ""
-            except Exception as e:
-                return title, outline, f"网页接口请求失败! 错误：{e}"
+                movie_title = resources.sehua_title_data.get(movie_number)
+            except:
+                signal.show_traceback_log(traceback.format_exc())
+                signal.show_log_text(traceback.format_exc())
+            if movie_title:
+                json_data["title"] = movie_title
+                LogBuffer.log().write(f"\n 🌸 Sehua title done!({get_used_time(start_time)}s)")
 
-    deepl_url = "https://api-free.deepl.com" if ":fx" in deepl_key else "https://api.deepl.com"
-    url = f"{deepl_url}/v2/translate?auth_key={deepl_key}&source_lang={ls}&target_lang=ZH"
-    params_title = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "text": title,
-    }
-    params_outline = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "text": outline,
-    }
+        # 匹配网络高质量标题（yesjav， 可在线更新）
+        if not movie_title and title_yesjav == "on" and json_data_title_language == "ja":
+            start_time = time.time()
+            movie_title = get_yesjav_title(movie_number)
+            if movie_title and langid.classify(movie_title)[0] != "ja":
+                json_data["title"] = movie_title
+                LogBuffer.log().write(f"\n 🆈 Yesjav title done!({get_used_time(start_time)}s)")
 
-    if title:
-        result, res = post_html(url, data=params_title, json_data=True)
-        if not result:
-            return title, outline, f"API 接口请求失败！错误：{res}"
-        else:
-            if "translations" in res:
-                title = res["translations"][0]["text"]
+        # 使用json_data数据
+        if not movie_title and title_translate == "on" and json_data_title_language == "ja":
+            trans_title = json_data["title"]
+
+    # 处理outline
+    if json_data["outline"] and outline_language != "jp":
+        if outline_translate == "on" and langid.classify(json_data["outline"])[0] == "ja":
+            trans_outline = json_data["outline"]
+
+    # 翻译
+    if Flags.translate_by_list:
+        if (trans_title and title_translate == "on") or (trans_outline and outline_translate == "on"):
+            start_time = time.time()
+            translate_by_list = Flags.translate_by_list.copy()
+            if not json_data["cd_part"]:
+                random.shuffle(translate_by_list)
+            for each in translate_by_list:
+                if each == "youdao":  # 使用有道翻译
+                    t, o, r = youdao_translate(trans_title, trans_outline)
+                elif each == "google":  # 使用 google 翻译
+                    t, o, r = google_translate(trans_title, trans_outline)
+                else:  # 使用deepl翻译
+                    t, o, r = deepl_translate(trans_title, trans_outline, "JA", json_data["file_path"])
+                if r:
+                    LogBuffer.log().write(
+                        f"\n 🔴 Translation failed!({each.capitalize()})({get_used_time(start_time)}s) Error: {r}"
+                    )
+                else:
+                    if t:
+                        json_data["title"] = t
+                    if o:
+                        json_data["outline"] = o
+                    LogBuffer.log().write(f"\n 🍀 Translation done!({each.capitalize()})({get_used_time(start_time)}s)")
+                    json_data["outline_from"] = each
+                    break
             else:
-                return title, outline, f"API 接口返回数据异常！返回内容：{res}"
-    if outline:
-        result, res = post_html(url, data=params_outline, json_data=True)
-        if not result:
-            return title, outline, f"API 接口请求失败！错误：{res}"
-        else:
-            if "translations" in res:
-                outline = res["translations"][0]["text"]
-            else:
-                return title, outline, f"API 接口返回数据异常！返回内容：{res}"
-    return title, outline, ""
+                translate_by = translate_by.strip(",").capitalize()
+                LogBuffer.log().write(
+                    f"\n 🔴 Translation failed! {translate_by} 不可用！({get_used_time(start_time)}s)"
+                )
+
+    # 简繁转换
+    if title_language == "zh_cn":
+        json_data["title"] = zhconv.convert(json_data["title"], "zh-cn")
+    elif title_language == "zh_tw":
+        json_data["title"] = zhconv.convert(json_data["title"], "zh-hant")
+        json_data["mosaic"] = zhconv.convert(json_data["mosaic"], "zh-hant")
+
+    if outline_language == "zh_cn":
+        json_data["outline"] = zhconv.convert(json_data["outline"], "zh-cn")
+    elif outline_language == "zh_tw":
+        json_data["outline"] = zhconv.convert(json_data["outline"], "zh-hant")
+
+    return json_data
 
 
-def translate_info(json_data: JsonData):
+def translate_info(json_data: TranslateData):
     xml_info = resources.info_mapping_data
     if len(xml_info) == 0:
         return json_data
@@ -318,7 +264,7 @@ def translate_info(json_data: JsonData):
     return json_data
 
 
-def translate_actor(json_data: JsonData):
+def translate_actor(json_data: TranslateData):
     # 网络请求真实的演员名字
     actor_realname = config.actor_realname
     mosaic = json_data["mosaic"]
@@ -397,6 +343,148 @@ def translate_actor(json_data: JsonData):
     return json_data
 
 
+# 以下不需要 json_data
+
+
+def youdao_translate(title: str, outline: str):
+    url = "https://fanyi.youdao.com/translate?smartresult=dict&smartresult=rule"
+    msg = f"{title}\n{outline}"
+    lts = str(int(time.time() * 1000))
+    salt = lts + str(random.randint(0, 10))
+    sign = hashlib.md5(("fanyideskweb" + msg + salt + config.youdaokey).encode("utf-8")).hexdigest()
+
+    data = {
+        "i": msg,
+        "from": "AUTO",
+        "to": "zh-CHS",
+        "smartresult": "dict",
+        "client": "fanyideskweb",
+        "salt": salt,
+        "sign": sign,
+        "lts": lts,
+        "bv": "c6b8c998b2cbaa29bd94afc223bc106c",
+        "doctype": "json",
+        "version": "2.1",
+        "keyfrom": "fanyi.web",
+        "ue": "UTF-8",
+        "typoResult": "true",
+        "action": "FY_BY_CLICKBUTTION",
+    }
+    headers = {
+        "Cookie": random.choice(
+            [
+                "OUTFOX_SEARCH_USER_ID=833904829@10.169.0.84",
+                "OUTFOX_SEARCH_USER_ID=-10218418@11.136.67.24;",
+                "OUTFOX_SEARCH_USER_ID=1989505748@10.108.160.19;",
+                "OUTFOX_SEARCH_USER_ID=2072418438@218.82.240.196;",
+                "OUTFOX_SEARCH_USER_ID=1768574849@220.181.76.83;",
+                "OUTFOX_SEARCH_USER_ID=-2153895048@10.168.8.76;",
+            ]
+        ),
+        "Referer": "https://fanyi.youdao.com/?keyfrom=dict2.top",
+    }
+    headers_o = config.headers
+    headers.update(headers_o)
+    result, res = post_html(url, data=data, headers=headers, json_data=True)
+    if not result:
+        return title, outline, f"请求失败！可能是被封了，可尝试更换代理！错误：{res}"
+    else:
+        assert not isinstance(res, str)
+        translateResult = res.get("translateResult")
+        if not translateResult:
+            return title, outline, f"返回数据未找到翻译结果！返回内容：{res}"
+        else:
+            list_count = len(translateResult)
+            if list_count:
+                i = 0
+                if title:
+                    i = 1
+                    title_result_list = translateResult[0]
+                    title_list = [a.get("tgt") for a in title_result_list]
+                    title_temp = "".join(title_list)
+                    if title_temp:
+                        title = title_temp
+                if outline:
+                    outline_temp = ""
+                    for j in range(i, list_count):
+                        outline_result_list = translateResult[j]
+                        outline_list = [a.get("tgt") for a in outline_result_list]
+                        outline_temp += "".join(outline_list) + "\n"
+                    outline_temp = outline_temp.strip("\n")
+                    if outline_temp:
+                        outline = outline_temp
+    return title, outline.strip("\n"), ""
+
+
+def _deepl_trans_thread(ls: str, title: str, outline: str, file_path: str):
+    global deepl_result
+    result = ""
+    try:
+        if title:
+            title = deepl.translate(source_language=ls, target_language="ZH", text=title)
+        if outline:
+            outline = deepl.translate(source_language=ls, target_language="ZH", text=outline)
+    except Exception as e:
+        result = f"网页接口请求失败! 错误：{e}"
+        print(title, outline, f"网页接口请求失败! 错误：{e}")
+    deepl_result[file_path] = (title, outline, result)
+
+
+def deepl_translate(title: str, outline: str, ls="JA", file_path: str = ""):
+    global deepl_result
+    deepl_key = config.deepl_key
+    if not deepl_key:
+        if file_path:
+            t_deepl = threading.Thread(target=_deepl_trans_thread, args=(ls, title, outline, file_path))
+            t_deepl.setDaemon(True)
+            t_deepl.start()
+            t_deepl.join(timeout=config.timeout)
+            t, o, r = title, outline, "翻译失败或超时！"
+            if deepl_result.get(file_path):
+                t, o, r = deepl_result[file_path]
+            return t, o, r
+        else:
+            try:
+                if title:
+                    title = deepl.translate(source_language=ls, target_language="ZH", text=title)
+                if outline:
+                    outline = deepl.translate(source_language=ls, target_language="ZH", text=outline)
+                return title, outline, ""
+            except Exception as e:
+                return title, outline, f"网页接口请求失败! 错误：{e}"
+
+    deepl_url = "https://api-free.deepl.com" if ":fx" in deepl_key else "https://api.deepl.com"
+    url = f"{deepl_url}/v2/translate?auth_key={deepl_key}&source_lang={ls}&target_lang=ZH"
+    params_title = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "text": title,
+    }
+    params_outline = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "text": outline,
+    }
+
+    if title:
+        result, res = post_html(url, data=params_title, json_data=True)
+        if not result:
+            return title, outline, f"API 接口请求失败！错误：{res}"
+        else:
+            if "translations" in res:
+                title = res["translations"][0]["text"]
+            else:
+                return title, outline, f"API 接口返回数据异常！返回内容：{res}"
+    if outline:
+        result, res = post_html(url, data=params_outline, json_data=True)
+        if not result:
+            return title, outline, f"API 接口请求失败！错误：{res}"
+        else:
+            if "translations" in res:
+                outline = res["translations"][0]["text"]
+            else:
+                return title, outline, f"API 接口返回数据异常！返回内容：{res}"
+    return title, outline, ""
+
+
 def get_youdao_key():
     try:
         t = threading.Thread(target=_get_youdao_key_thread)
@@ -437,98 +525,3 @@ def _get_youdao_key_thread():
             signal.show_log_text(traceback.format_exc())
             signal.show_log_text(" 🔴 有道翻译接口key获取失败！请检查网页版有道是否正常！" + str(e))
     return youdaokey
-
-
-def translate_title_outline(json_data: JsonData, movie_number: str):
-    title_language = config.title_language
-    title_translate = config.title_translate
-    outline_language = config.outline_language
-    outline_translate = config.outline_translate
-    translate_by = config.translate_by
-    if title_language == "jp" and outline_language == "jp":
-        return
-    trans_title = ""
-    trans_outline = ""
-    title_sehua = config.title_sehua
-    title_sehua_zh = config.title_sehua_zh
-    title_yesjav = config.title_yesjav
-    json_data_title_language = langid.classify(json_data["title"])[0]
-
-    # 处理title
-    if title_language != "jp":
-        movie_title = ""
-
-        # 匹配本地高质量标题(色花标题数据)
-        if title_sehua_zh == "on" or (json_data_title_language == "ja" and title_sehua == "on"):
-            start_time = time.time()
-            try:
-                movie_title = resources.sehua_title_data.get(movie_number)
-            except:
-                signal.show_traceback_log(traceback.format_exc())
-                signal.show_log_text(traceback.format_exc())
-            if movie_title:
-                json_data["title"] = movie_title
-                LogBuffer.log().write(f"\n 🌸 Sehua title done!({get_used_time(start_time)}s)")
-
-        # 匹配网络高质量标题（yesjav， 可在线更新）
-        if not movie_title and title_yesjav == "on" and json_data_title_language == "ja":
-            start_time = time.time()
-            movie_title = get_yesjav_title(movie_number)
-            if movie_title and langid.classify(movie_title)[0] != "ja":
-                json_data["title"] = movie_title
-                LogBuffer.log().write(f"\n 🆈 Yesjav title done!({get_used_time(start_time)}s)")
-
-        # 使用json_data数据
-        if not movie_title and title_translate == "on" and json_data_title_language == "ja":
-            trans_title = json_data["title"]
-
-    # 处理outline
-    if json_data["outline"] and outline_language != "jp":
-        if outline_translate == "on" and langid.classify(json_data["outline"])[0] == "ja":
-            trans_outline = json_data["outline"]
-
-    # 翻译
-    if Flags.translate_by_list:
-        if (trans_title and title_translate == "on") or (trans_outline and outline_translate == "on"):
-            start_time = time.time()
-            translate_by_list = Flags.translate_by_list.copy()
-            if not json_data["cd_part"]:
-                random.shuffle(translate_by_list)
-            for each in translate_by_list:
-                if each == "youdao":  # 使用有道翻译
-                    t, o, r = youdao_translate(trans_title, trans_outline)
-                elif each == "google":  # 使用 google 翻译
-                    t, o, r = google_translate(trans_title, trans_outline)
-                else:  # 使用deepl翻译
-                    t, o, r = deepl_translate(trans_title, trans_outline, "JA", json_data["file_path"])
-                if r:
-                    LogBuffer.log().write(
-                        f"\n 🔴 Translation failed!({each.capitalize()})({get_used_time(start_time)}s) Error: {r}"
-                    )
-                else:
-                    if t:
-                        json_data["title"] = t
-                    if o:
-                        json_data["outline"] = o
-                    LogBuffer.log().write(f"\n 🍀 Translation done!({each.capitalize()})({get_used_time(start_time)}s)")
-                    json_data["outline_from"] = each
-                    break
-            else:
-                translate_by = translate_by.strip(",").capitalize()
-                LogBuffer.log().write(
-                    f"\n 🔴 Translation failed! {translate_by} 不可用！({get_used_time(start_time)}s)"
-                )
-
-    # 简繁转换
-    if title_language == "zh_cn":
-        json_data["title"] = zhconv.convert(json_data["title"], "zh-cn")
-    elif title_language == "zh_tw":
-        json_data["title"] = zhconv.convert(json_data["title"], "zh-hant")
-        json_data["mosaic"] = zhconv.convert(json_data["mosaic"], "zh-hant")
-
-    if outline_language == "zh_cn":
-        json_data["outline"] = zhconv.convert(json_data["outline"], "zh-cn")
-    elif outline_language == "zh_tw":
-        json_data["outline"] = zhconv.convert(json_data["outline"], "zh-hant")
-
-    return json_data

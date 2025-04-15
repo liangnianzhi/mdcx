@@ -42,7 +42,7 @@ from models.core.file import (
 )
 from models.core.flags import Flags
 from models.core.image import add_del_extrafanart_copy
-from models.core.json_data import LogBuffer, ShowData
+from models.core.json_data import LogBuffer, NFOData, ShowData
 from models.core.nfo import write_nfo
 from models.core.scraper import again_search, get_remain_list, start_new_scrape
 from models.core.subtitle import add_sub_for_all_video
@@ -1286,7 +1286,7 @@ class MyMAinWindow(QMainWindow):
 
     def save_nfo_info(self):
         try:
-            json_data = self.json_array[self.now_show_name]
+            json_data: NFOData = self.json_array[self.now_show_name]
             file_path = json_data["file_path"]
             nfo_path = os.path.splitext(file_path)[0] + ".nfo"
             nfo_folder = split_path(file_path)[0]

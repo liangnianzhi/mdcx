@@ -60,18 +60,21 @@ class LogBuffer:
 class MoveContext(TypedDict):
     dont_move_movie: bool
     del_file_path: bool
-    file_path: str
-    cd_part: str
 
 
-class ImageContext(TypedDict):
+class ActorContext(TypedDict):
+    actor_photo: str
+    all_actor_photo: dict
+
+
+class ImageData(TypedDict):
     cd_part: str
 
     cover_size: tuple[int, int]
     poster_big: bool
-    # poster_marked: bool
-    # thumb_marked: bool
-    # fanart_marked: bool
+    poster_marked: bool
+    thumb_marked: bool
+    fanart_marked: bool
     cover_list: list[tuple[str, str]]
     poster_path: str
     thumb_path: str
@@ -84,125 +87,95 @@ class ImageContext(TypedDict):
     poster_from: str
     trailer_from: str
 
-
-class ActorData(TypedDict):
-    actor: str
+    number: str
+    letters: str
+    image_download: bool
+    poster_size: tuple[int, int]
+    mosaic: str
+    originaltitle_amazon: str
     actor_amazon: list[str]
-    actor_href: str
-    all_actor: str
-    actor_photo: str
-    all_actor_photo: dict
     amazon_orginaltitle_actor: str
 
 
-class MovieData(TypedDict):
-    definition: str
-    title: str
-    outline: str
-    failed_folder: str
-    folder_name: str
-    version: int
-    image_download: bool
-    outline_from: str
-    cover_from: str
-    extrafanart_from: str
-    trailer_from: str
-    short_number: str
-    appoint_number: str
-    appoint_url: str
-    website_name: str
-    fields_info: str
-    number: str
-    letters: str
-    has_sub: bool
-    c_word: str
-    destroyed: str
-    leak: str
-    wuma: str
-    youma: str
-    mosaic: str
-    tag: str
-    _4K: str
-    source: str
-    release: str
-    year: str
-    javdbid: str
-    score: str
-    originaltitle: str
-    studio: str
-    publisher: str
-    runtime: str
-    director: str
-    website: str
-    series: str
-    trailer: str
-    originaltitle_amazon: str
-    originalplot: str
-    wanted: str
-    naming_media: str
-    naming_file: str
-    country: str
-    tag_only: str
-
-
-class InternalStateData(TypedDict):
+class InternalState(TypedDict):
     failed_folder: str
     version: int
-    image_download: bool  # 爬虫返回
-    nfo_can_translate: bool  # 内部状态
-    # 内部状态, 控制是否加水印
-    poster_marked: bool
-    thumb_marked: bool
-    fanart_marked: bool
 
 
 class OutputData(TypedDict):
-    title: str
-    outline: str
-    folder_name: str
-    outline_from: str
-    extrafanart_from: str
-    trailer_from: str
     short_number: str
-    appoint_number: str
     appoint_url: str
     website_name: str
     fields_info: str
-    number: str
-    letters: str
-    has_sub: bool
-    c_word: str
-    cd_part: str
-    destroyed: str
-    leak: str
     wuma: str
     youma: str
-    mosaic: str
-    tag: str
     _4K: str
-    source: str
-    release: str
-    year: str
-    javdbid: str
-    score: str
+
+
+class NFOData(TypedDict):
+    nfo_can_translate: bool
+    c_word: str
+    cd_part: str
     originaltitle: str
+    originalplot: str
+    title: str
     studio: str
     publisher: str
+    year: str
+    outline: str
+    outline_from: str
+    country: str
     runtime: str
     director: str
+    actor: str
+    all_actor: str
+    release: str
+    tag: str
+    tag_only: str
+    number: str
+    cover: str
+    poster: str
     website: str
     series: str
+    mosaic: str
+    definition: str
     trailer: str
-    originaltitle_amazon: str
-    originalplot: str
+    letters: str
     wanted: str
-    naming_media: str
-    naming_file: str
-    country: str
+    score: str
+    originaltitle_amazon: str
+    actor_amazon: list[str]
+    source: str
+    poster_from: str
+    cover_from: str
+    extrafanart_from: str
+    trailer_from: str
+    appoint_number: str
+    javdbid: str
+    cover_list: list[tuple[str, str]]
+    poster_path: str
+    thumb_path: str
+    fanart_path: str
 
 
-class JsonData(MoveContext, ActorData, MovieData, InternalStateData, OutputData, ImageContext):
-    pass
+class TranslateData(TypedDict):
+    title: str
+    outline: str
+    file_path: str
+    cd_part: str
+    tag: str
+    actor: str
+    all_actor: str
+    letters: str
+    number: str
+    has_sub: bool
+    mosaic: str
+    series: str
+    studio: str
+    publisher: str
+    director: str
+    outline_from: str
+    actor_href: str
 
 
 class ShowData(TypedDict):
@@ -243,12 +216,19 @@ class ShowData(TypedDict):
     country: str
 
 
+class JsonData(ImageData, NFOData, TranslateData, ActorContext, MoveContext, InternalState, ShowData, OutputData):
+    pass
+
+
 def new_json_data() -> JsonData:
     return {
+        "show_name": "",
+        "img_path": "",
         "tag_only": "",
         "definition": "",
         "actor": "",
         "cover_size": (0, 0),
+        "poster_size": (0, 0),
         "poster_big": False,
         "poster_marked": True,
         "thumb_marked": True,
@@ -273,7 +253,6 @@ def new_json_data() -> JsonData:
         "title": "",
         "outline": "",
         "failed_folder": "",
-        "folder_name": "",
         "version": 0,
         "image_download": False,
         "outline_from": "",
@@ -314,7 +293,5 @@ def new_json_data() -> JsonData:
         "originaltitle_amazon": "",
         "originalplot": "",
         "wanted": "",
-        "naming_media": "",
-        "naming_file": "",
         "country": "",
     }

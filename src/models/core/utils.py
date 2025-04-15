@@ -20,54 +20,11 @@ try:
 except ImportError:
     has_opencv = False
 from models.base.file import read_link, split_path
-from models.base.number import get_number_letters
 from models.base.path import get_main_path, get_path
 from models.base.utils import convert_path, get_used_time
 from models.config.config import config
-from models.config.resources import resources
-from models.core.json_data import JsonData, LogBuffer
+from models.core.json_data import LogBuffer
 from models.signals import signal
-
-
-def replace_word(json_data: JsonData):
-    # 常见字段替换的字符
-    for key, value in config.all_rep_word.items():
-        for each in config.all_key_word:
-            json_data[each] = json_data[each].replace(key, value)
-
-    # 简体时替换的字符
-    key_word = []
-    if config.title_language == "zh_cn":
-        key_word.append("title")
-    if config.outline_language == "zh_cn":
-        key_word.append("outline")
-
-    for key, value in config.chinese_rep_word.items():
-        for each in key_word:
-            json_data[each] = json_data[each].replace(key, value)
-
-    # 替换标题的上下集信息
-    fields_word = ["title", "originaltitle"]
-    for field in fields_word:
-        for each in config.title_rep:
-            json_data[field] = json_data[field].replace(each, "").strip(":， ").strip()
-
-
-def show_movie_info(json_data: JsonData):
-    if config.show_data_log == "off":  # 调试模式打开时显示详细日志
-        return
-    for key in config.show_key:
-        value = json_data.get(key)
-        if not value:
-            continue
-        if key == "outline" or key == "originalplot" and len(value) > 100:
-            value = str(value)[:98] + "……（略）"
-        elif key == "has_sub":
-            value = "中文字幕"
-        elif key == "actor" and "actor_all," in config.nfo_include_new:
-            value = json_data["all_actor"]
-        LogBuffer.log().write("\n     " + "%-13s" % key + ": " + str(value))
-
 
 has_ffprobe = True if shutil.which("ffprobe") else False
 
@@ -112,7 +69,8 @@ def _get_video_metadata_ffmpeg(file_path: str) -> tuple[int, str]:
 _get_video_metadata = _get_video_metadata_opencv if has_opencv else _get_video_metadata_ffmpeg
 
 
-def get_video_size(json_data: JsonData, file_path: str):
+def get_video_size(raw_tag: str, file_path: str) -> tuple[str, str, str]:
+    """return: (definition, d_4K, tag)"""
     # 获取本地分辨率 同时获取视频编码格式
     definition = ""
     height = 0
@@ -165,14 +123,14 @@ def get_video_size(json_data: JsonData, file_path: str):
         definition = "360P"
     elif height >= 100:
         definition = "144P"
-    json_data["definition"] = definition
 
+    d_4K = ""
     if definition in ["4K", "8K", "UHD", "UHD8"]:
-        json_data["_4K"] = "-" + definition
+        d_4K = "-" + definition
 
     # 去除标签中的分辨率率，使用本地读取的实际分辨率
     remove_key = ["144P", "360P", "480P", "540P", "720P", "960P", "1080P", "1440P", "2160P", "4K", "8K"]
-    tag = json_data["tag"]
+    tag = raw_tag
     for each_key in remove_key:
         tag = tag.replace(each_key, "").replace(each_key.lower(), "")
     tag_list = re.split(r"[,，]", tag)
@@ -182,12 +140,12 @@ def get_video_size(json_data: JsonData, file_path: str):
         new_tag_list.insert(0, definition)
         if hd_get == "video":
             new_tag_list.insert(0, codec_fourcc.upper())  # 插入编码格式
-    json_data["tag"] = "，".join(new_tag_list)
-    return json_data
+    tag = "，".join(new_tag_list)
+    return definition, d_4K, tag
 
 
-def show_data_result(json_data: JsonData, start_time: float):
-    if json_data["title"] == "":
+def show_data_result(title: str, fields_info: str, start_time: float) -> bool:
+    if title == "":
         LogBuffer.log().write(
             f"\n 🌐 [website] {LogBuffer.req().get().strip('-> ')}"
             f"\n{LogBuffer.info().get().strip()}"
@@ -202,8 +160,8 @@ def show_data_result(json_data: JsonData, start_time: float):
         except:
             signal.show_log_text(traceback.format_exc())
         if config.show_from_log == "on":  # 字段来源信息
-            if json_data["fields_info"]:
-                LogBuffer.log().write("\n" + json_data["fields_info"].strip(" ").strip("\n"))
+            if fields_info:
+                LogBuffer.log().write("\n" + fields_info.strip(" ").strip("\n"))
         LogBuffer.log().write(f"\n 🍀 Data done!({get_used_time(start_time)}s)")
         return True
 
@@ -224,24 +182,6 @@ def deal_url(url: str) -> tuple[Optional[str], str]:
                 return web_name, url
 
     return None, url
-
-
-def replace_special_word(json_data: JsonData):
-    # 常见字段替换的字符
-    all_key_word = [
-        "title",
-        "originaltitle",
-        "outline",
-        "originalplot",
-        "series",
-        "director",
-        "studio",
-        "publisher",
-        "tag",
-    ]
-    for key, value in config.special_word.items():
-        for each in all_key_word:
-            json_data[each] = json_data[each].replace(key, value)
 
 
 def convert_half(string: str) -> str:
@@ -273,73 +213,6 @@ def nfd2c(path: str) -> str:
     else:
         new_path = unicodedata.normalize("NFD", path)  # Mac 会拆成两个字符，即 NFD，windwos是 NFC
     return new_path
-
-
-def deal_some_field(json_data: JsonData) -> JsonData:
-    fields_rule = config.fields_rule
-    actor = json_data["actor"]
-    title = json_data["title"]
-    originaltitle = json_data["originaltitle"]
-    number = json_data["number"]
-
-    # 演员处理
-    if actor:
-        # 去除演员名中的括号
-        new_actor_list = []
-        actor_list = []
-        temp_actor_list = []
-        for each_actor in actor.split(","):
-            if each_actor and each_actor not in actor_list:
-                actor_list.append(each_actor)
-                new_actor = re.findall(r"[^\(\)\（\）]+", each_actor)
-                if new_actor[0] not in new_actor_list:
-                    new_actor_list.append(new_actor[0])
-                temp_actor_list.extend(new_actor)
-        if "del_char" in fields_rule:
-            json_data["actor"] = ",".join(new_actor_list)
-        else:
-            json_data["actor"] = ",".join(actor_list)
-
-        # 去除标题后的演员名
-        if "del_actor" in fields_rule:
-            new_all_actor_name_list = []
-            for each_actor in json_data["actor_amazon"] + temp_actor_list:
-                actor_keyword_list = resources.get_actor_data(each_actor).get(
-                    "keyword"
-                )  # 获取演员映射表的所有演员别名进行替换
-                new_all_actor_name_list.extend(actor_keyword_list)
-            for each_actor in set(new_all_actor_name_list):
-                try:
-                    end_actor = re.compile(rf" {each_actor}$")
-                    title = re.sub(end_actor, "", title)
-                    originaltitle = re.sub(end_actor, "", originaltitle)
-                except:
-                    signal.show_traceback_log(traceback.format_exc())
-        json_data["title"] = title.strip()
-        json_data["originaltitle"] = originaltitle.strip()
-
-    # 去除标题中的番号
-    if number != title and title.startswith(number):
-        title = title.replace(number, "").strip()
-        json_data["title"] = title
-    if number != originaltitle and originaltitle.startswith(number):
-        originaltitle = originaltitle.replace(number, "").strip()
-        json_data["originaltitle"] = originaltitle
-
-    # 去除标题中的/
-    json_data["title"] = json_data["title"].replace("/", "#").strip(" -")
-    json_data["originaltitle"] = json_data["originaltitle"].replace("/", "#").strip(" -")
-
-    # 去除素人番号前缀数字
-    if "del_num" in fields_rule:
-        temp_n = re.findall(r"\d{3,}([a-zA-Z]+-\d+)", number)
-        if temp_n:
-            json_data["number"] = temp_n[0]
-            json_data["letters"] = get_number_letters(json_data["number"])
-
-    if number.endswith("Z"):
-        json_data["number"] = json_data["number"][:-1] + "z"
-    return json_data
 
 
 def get_movie_path_setting(file_path="") -> tuple[str, str, str, list[str], str, str]:

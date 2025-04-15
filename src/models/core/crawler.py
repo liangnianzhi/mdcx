@@ -1108,11 +1108,4 @@ def _deal_json_data(json_data: JsonData) -> JsonData:
         for key, value in rep_word.items():
             json_data[each] = json_data[each].replace(key, value)
 
-    # 命名规则
-    naming_media = config.naming_media
-    naming_file = config.naming_file
-    folder_name = config.folder_name
-    json_data["naming_media"] = naming_media
-    json_data["naming_file"] = naming_file
-    json_data["folder_name"] = folder_name
     return json_data
