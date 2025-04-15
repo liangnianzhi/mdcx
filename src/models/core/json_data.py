@@ -57,16 +57,24 @@ class LogBuffer:
         self.buffer.clear()
 
 
-class MoveContext(TypedDict):
+# 尚未处理的字段
+class Other(TypedDict):
+    short_number: str
+    appoint_url: str
+    website_name: str
+    fields_info: str
+    wuma: str
+    youma: str
+    _4K: str
+    failed_folder: str
+    version: int
+    actor_photo: str
+    all_actor_photo: dict
     dont_move_movie: bool
     del_file_path: bool
 
 
-class ActorContext(TypedDict):
-    actor_photo: str
-    all_actor_photo: dict
-
-
+# core/web.py 使用的字段
 class ImageData(TypedDict):
     cd_part: str
 
@@ -97,21 +105,7 @@ class ImageData(TypedDict):
     amazon_orginaltitle_actor: str
 
 
-class InternalState(TypedDict):
-    failed_folder: str
-    version: int
-
-
-class OutputData(TypedDict):
-    short_number: str
-    appoint_url: str
-    website_name: str
-    fields_info: str
-    wuma: str
-    youma: str
-    _4K: str
-
-
+# core/nfo.py 使用的字段
 class NFOData(TypedDict):
     nfo_can_translate: bool
     c_word: str
@@ -158,6 +152,7 @@ class NFOData(TypedDict):
     fanart_path: str
 
 
+# core/translate.py 使用的字段
 class TranslateData(TypedDict):
     title: str
     outline: str
@@ -178,6 +173,7 @@ class TranslateData(TypedDict):
     actor_href: str
 
 
+# 主界面展示使用的字段
 class ShowData(TypedDict):
     file_path: str
     number: str
@@ -212,11 +208,11 @@ class ShowData(TypedDict):
     trailer_from: str
     file_path: str
     show_name: str
-    img_path: str  # 不在初始数据中，但在函数中使用
+    img_path: str
     country: str
 
 
-class JsonData(ImageData, NFOData, TranslateData, ActorContext, MoveContext, InternalState, ShowData, OutputData):
+class JsonData(ImageData, NFOData, TranslateData, ShowData, Other):
     pass
 
 

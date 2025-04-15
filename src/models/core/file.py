@@ -22,7 +22,7 @@ from models.base.utils import convert_path, get_current_time, get_used_time
 from models.config.config import config
 from models.config.resources import resources
 from models.core.flags import Flags
-from models.core.json_data import JsonData, LogBuffer, MoveContext, new_json_data
+from models.core.json_data import JsonData, LogBuffer, new_json_data
 from models.core.utils import get_movie_path_setting, get_new_release, nfd2c
 from models.data_models import FileMode
 from models.signals import signal
@@ -1633,7 +1633,7 @@ def move_other_file(number: str, folder_old_path: str, folder_new_path: str, fil
                     LogBuffer.log().write(f"\n 🍀 Move {old_file} done!")
 
 
-def move_movie(json_data: MoveContext, file_path: str, file_new_path: str) -> bool:
+def move_movie(json_data: JsonData, file_path: str, file_new_path: str) -> bool:
     # 明确不需要移动的，直接返回
     if json_data["dont_move_movie"]:
         LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_path}")
