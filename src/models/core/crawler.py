@@ -135,7 +135,9 @@ def _deal_some_list(field: str, website: str, same_list: list[str]) -> list[str]
 
 
 def _call_crawler(
-    json_data: JsonData,
+    appoint_number: str,
+    appoint_url: str,
+    file_path: str,
     website: str,
     language: str,
     file_number: str,
@@ -146,10 +148,6 @@ def _call_crawler(
     """
     获取某个网站数据
     """
-    appoint_number = json_data["appoint_number"]
-    appoint_url = json_data["appoint_url"]
-    file_path = json_data["file_path"]
-
     # 259LUXU-1111， mgstage 和 avsex 之外使用 LUXU-1111（素人番号时，short_number有值，不带前缀数字；反之，short_number为空)
     if short_number and website != "mgstage" and website != "avsex":
         file_number = short_number
@@ -697,7 +695,15 @@ def _call_crawlers(
             web_data_json = all_json_data[website][title_language]
         except:
             web_data = _call_crawler(
-                json_data, website, title_language, file_number, short_number, mosaic, config.title_language
+                json_data["appoint_number"],
+                json_data["appoint_url"],
+                json_data["file_path"],
+                website,
+                title_language,
+                file_number,
+                short_number,
+                mosaic,
+                config.title_language,
             )
             all_json_data.update(web_data)
             web_data_json: dict = all_json_data.get(website, {}).get(title_language, {})
@@ -778,7 +784,17 @@ def _call_specific_crawler(json_data: JsonData, website: str) -> JsonData:
         studio_language = "zh_cn"
         publisher_language = "zh_cn"
         director_language = "zh_cn"
-    web_data = _call_crawler(json_data, website, title_language, file_number, short_number, mosaic, org_language)
+    web_data = _call_crawler(
+        json_data["appoint_number"],
+        json_data["appoint_url"],
+        json_data["file_path"],
+        website,
+        title_language,
+        file_number,
+        short_number,
+        mosaic,
+        org_language,
+    )
     web_data_json = web_data.get(website, {}).get(title_language)
     json_data.update(web_data_json)
     if not json_data["title"]:
