@@ -59,19 +59,10 @@ class LogBuffer:
 
 # 尚未处理的字段
 class Other(TypedDict):
-    short_number: str
-    appoint_url: str
-    website_name: str
     fields_info: str
-    wuma: str
-    youma: str
-    _4K: str
     failed_folder: str
-    version: int
     actor_photo: str
     all_actor_photo: dict
-    dont_move_movie: bool
-    del_file_path: bool
 
 
 # core/web.py 使用的字段
@@ -212,7 +203,40 @@ class ShowData(TypedDict):
     country: str
 
 
-class JsonData(ImageData, NFOData, TranslateData, ShowData, Other):
+class FileInfo(TypedDict):
+    version: int
+    number: str
+    letters: str
+    has_sub: bool
+    c_word: str
+    cd_part: str
+    destroyed: str
+    leak: str
+    wuma: str
+    youma: str
+    mosaic: str
+    _4K: str
+    tag: str
+    actor_href: str
+    all_actor: str
+    definition: str
+    file_path: str
+    appoint_number: str
+    appoint_url: str
+    website_name: str
+    short_number: str
+    poster_marked: bool
+    thumb_marked: bool
+    fanart_marked: bool
+    poster_path: str
+    thumb_path: str
+    fanart_path: str
+    title: str
+    dont_move_movie: bool
+    del_file_path: bool
+
+
+class JsonData(ImageData, NFOData, TranslateData, ShowData, FileInfo, Other):
     pass
 
 

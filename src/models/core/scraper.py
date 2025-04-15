@@ -34,7 +34,7 @@ from models.core.file import (
 )
 from models.core.flags import Flags
 from models.core.image import add_mark, extrafanart_copy2, extrafanart_extras_copy
-from models.core.json_data import JsonData, LogBuffer
+from models.core.json_data import FileInfo, JsonData, LogBuffer, new_json_data
 from models.core.json_data_handlers import deal_some_field, replace_special_word, replace_word, show_movie_info
 from models.core.nfo import get_nfo_data, write_nfo
 from models.core.translate import translate_actor, translate_info, translate_title_outline
@@ -50,7 +50,7 @@ from models.tools.emby_actor_image import update_emby_actor_photo
 from models.tools.emby_actor_info import creat_kodi_actors
 
 
-def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> tuple[bool, JsonData]:
+def _scrape_one_file(file_path: str, file_info_tuple: tuple, file_mode: FileMode) -> tuple[bool, JsonData]:
     # 处理单个文件刮削
     # 初始化所需变量
     start_time = time.time()
@@ -59,8 +59,12 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
     file_path = convert_path(file_path)
 
     # 获取文件信息
-    json_data, movie_number, folder_old_path, file_name, file_ex, sub_list, file_show_name, file_show_path = file_info
-    json_data = cast(JsonData, json_data)
+    file_info, movie_number, folder_old_path, file_name, file_ex, sub_list, file_show_name, file_show_path = (
+        file_info_tuple
+    )
+    file_info = cast(FileInfo, file_info)
+    json_data = new_json_data()
+    json_data.update(file_info)  # type: ignore
     # 获取设置的媒体目录、失败目录、成功目录
     (
         _,
@@ -419,9 +423,10 @@ def _scrape_exec_thread(task: tuple[str, int, int]) -> None:
     file_mode = Flags.file_mode
 
     # 获取文件基础信息
-    file_info = get_file_info(file_path)
-    json_data, movie_number, folder_old_path, file_name, file_ex, sub_list, file_show_name, file_show_path = file_info
-
+    file_info_tuple = get_file_info(file_path)
+    file_info, movie_number, folder_old_path, _, _, _, file_show_name, file_show_path = file_info_tuple
+    json_data = new_json_data()
+    json_data.update(file_info)  # type: ignore
     # 显示刮削信息
     progress_value = Flags.scrape_started / count_all * 100
     progress_percentage = f"{progress_value:.2f}%"
@@ -443,7 +448,7 @@ def _scrape_exec_thread(task: tuple[str, int, int]) -> None:
 
     # 获取刮削数据
     try:
-        result, json_data = _scrape_one_file(file_path, file_info, file_mode)
+        scrape_success, json_data = _scrape_one_file(file_path, file_info_tuple, file_mode)
         if LogBuffer.req().get() != "do_not_update_json_data_dic":
             Flags.json_data_dic.update({movie_number: json_data})
     except Exception as e:
@@ -452,11 +457,11 @@ def _scrape_exec_thread(task: tuple[str, int, int]) -> None:
         signal.show_log_text(traceback.format_exc())
         LogBuffer.error().write("c1oreMain error: " + str(e))
         LogBuffer.log().write("\n" + traceback.format_exc())
-        result = False
+        scrape_success = False
 
     # 显示刮削数据
     try:
-        if result:
+        if scrape_success:
             Flags.succ_count += 1
             succ_show_name = (
                 str(Flags.count_claw)
@@ -484,7 +489,9 @@ def _scrape_exec_thread(task: tuple[str, int, int]) -> None:
                     LogBuffer.log().write(
                         "\n 🔴 该问题为权限问题：请尝试以管理员身份运行，同时关闭其他正在运行的Python脚本！"
                     )
-            fail_file_path = move_file_to_failed_folder(json_data, file_path, folder_old_path)
+            fail_file_path = move_file_to_failed_folder(
+                json_data, json_data["failed_folder"], file_path, folder_old_path
+            )
             Flags.failed_list.append([fail_file_path, LogBuffer.error().get()])
             Flags.failed_file_list.append(fail_file_path)
             _failed_file_info_show(str(Flags.fail_count), fail_file_path, LogBuffer.error().get())

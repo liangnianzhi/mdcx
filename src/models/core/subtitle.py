@@ -31,13 +31,12 @@ def add_sub_for_all_video():
     no_sub_count = 0
     new_sub_movie_list = []
     for movie in movie_list:
-        file_info = get_file_info(movie, copy_sub=False)
-        json_data, number, folder_old_path, file_name, file_ex, sub_list, *_ = file_info
-        has_sub = json_data["has_sub"]  # 视频中文字幕标识
+        file_info, number, folder_old_path, file_name, file_ex, sub_list, *_ = get_file_info(movie, copy_sub=False)
+        has_sub = file_info["has_sub"]  # 视频中文字幕标识
         if not has_sub:
             no_sub_count += 1
             signal.show_log_text(f" No sub:'{movie}' ")
-            cd_part = json_data["cd_part"]
+            cd_part = file_info["cd_part"]
             if sub_add:
                 add_succ = False
                 for sub_type in sub_type_list:
