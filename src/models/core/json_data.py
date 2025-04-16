@@ -261,7 +261,32 @@ class PathInfo(TypedDict):  # 24
     wanted: str
 
 
-class JsonData(ImageData, NFOData, TranslateData, ShowData, FileInfo, PathInfo, Other):  # 72
+class InputInfo(TypedDict):
+    release: str
+    number: str
+    short_number: str
+    source: str
+    file_path: str
+    appoint_number: str
+    appoint_url: str
+    has_sub: bool
+    c_word: str
+    leak: str
+    wuma: str
+    youma: str
+    cd_part: str
+    destroyed: str
+    mosaic: str
+    version: int
+    actor_amazon: list[str]
+    originaltitle_amazon: str
+    website_name: str
+    title: str
+    all_actor: str
+    all_actor_photo: dict
+
+
+class JsonData(ImageData, NFOData, TranslateData, ShowData, FileInfo, PathInfo, InputInfo, Other):  # 72
     pass
 
 
