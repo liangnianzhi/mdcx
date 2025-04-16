@@ -309,7 +309,7 @@ def main(number, appoint_url="", language="zh_cn", file_path="", appoint_number=
                     website=real_url,
                     wanted="",
                 )
-                res = CrawlerResult(site=website_name, zh_cn=movie_data)
+                res = CrawlerResult(site=website_name, data=movie_data)
                 debug_info = "数据获取成功！"
                 LogBuffer.info().write(web_info + debug_info)
 

@@ -67,6 +67,7 @@ def main(number, appoint_url="", language="zh_cn", file_path="", appoint_number=
     real_url = appoint_url
     cableav_url = getattr(config, "cableav_website", "https://cableav.tv")
 
+    res = CrawlerResult.failed(website_name)
     try:
         if not real_url:
             # 处理番号
@@ -135,7 +136,7 @@ def main(number, appoint_url="", language="zh_cn", file_path="", appoint_number=
                 wanted="",
                 country="CN",
             )
-            res = CrawlerResult(site=website_name, zh_cn=movie_data)
+            res = CrawlerResult(site=website_name, data=movie_data)
             debug_info = "数据获取成功！"
             LogBuffer.info().write(web_info + debug_info)
 
@@ -147,7 +148,6 @@ def main(number, appoint_url="", language="zh_cn", file_path="", appoint_number=
     except Exception as e:
         # print(traceback.format_exc())
         LogBuffer.error().write(str(e))
-        res = CrawlerResult(site=website_name, zh_cn={})
     LogBuffer.req().write(f"({round((time.time() - start_time))}s) ")
     return res
 
