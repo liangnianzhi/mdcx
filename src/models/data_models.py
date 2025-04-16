@@ -113,6 +113,13 @@ class MovieData:
         """获取数据"""
         return self.__dict__.get(key, default)
 
+    def set(self, key: str, value):
+        """设置数据"""
+        if key in self.__dict__:
+            self.__dict__[key] = value
+        else:
+            raise KeyError(f"{key} not in MovieData")
+
 
 class Lang(enum.Enum):
     zh_cn = "zh_cn"
@@ -133,9 +140,38 @@ class CrawlerResult:
 
 
 @dataclass
+class Metadata:
+    letters: str = ""
+    short_number: str = ""
+    file_path: str = ""
+    appoint_number: str = ""
+    appoint_url: str = ""
+    has_sub: bool = False
+    c_word: str = ""
+    leak: str = ""
+    wuma: str = ""
+    youma: str = ""
+    cd_part: str = ""
+    destroyed: str = ""
+    version: int = 0
+    actor_amazon: list = field(default_factory=list)
+    originaltitle_amazon: str = ""
+    website_name: str = ""
+    fields_info: str = ""
+    outline_from: str = ""
+    poster_from: str = ""
+    cover_from: str = ""
+    extrafanart_from: str = ""
+    trailer_from: str = ""
+    image_download: bool = False
+    amazon_orginaltitle_actor: str = ""
+    cover_list: list = field(default_factory=list)
+
+
+@dataclass
 class FinalResult:
     data: MovieData
-    metadata: dict
+    metadata: Metadata
 
     def update(self, data: "MovieData"):
         """更新数据"""
@@ -146,7 +182,7 @@ class FinalResult:
     @classmethod
     def new_empty(cls) -> "FinalResult":
         """创建一个新的空的 FinalResult"""
-        return cls(data=MovieData.new_empty(), metadata={})
+        return cls(data=MovieData.new_empty(), metadata=Metadata())
 
 
 class FileMode(Enum):
