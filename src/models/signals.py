@@ -75,14 +75,8 @@ class Signals(QObject):
     def add_label_info(self, show_data: Optional[ShowData]):
         self.set_main_info.emit(show_data)
 
-    def show_list_name(
-        self,
-        filename,
-        result,
-        json_data,
-        real_number="",
-    ):
-        self.exec_show_list_name.emit(filename, result, json_data, real_number)
+    def show_list_name(self, filename: str, success: bool, show_data: ShowData, real_number:str):
+        self.exec_show_list_name.emit(filename, success, show_data: ShowData, real_number:str)
 
 
 signal = Signals()

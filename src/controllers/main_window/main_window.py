@@ -43,7 +43,7 @@ from models.core.file import (
 )
 from models.core.flags import Flags
 from models.core.image import add_del_extrafanart_copy
-from models.core.json_data import LogBuffer, NFOData, ShowData
+from models.core.json_data import LogBuffer, ShowData
 from models.core.nfo import write_nfo
 from models.core.scraper import again_search, get_remain_list, start_new_scrape
 from models.core.subtitle import add_sub_for_all_video
@@ -96,14 +96,14 @@ class MyMAinWindow(QMainWindow):
         # region 初始化需要的变量
         self.localversion = config.local_version  # 当前版本号
         self.new_version = "\n🔍 点击检查最新版本"  # 有版本更新时在左下角显示的新版本信息
-        self.json_data = {}  # 当前树状图选中文件的json_data
+        self.show_data: Optional[ShowData] = None  # 当前树状图选中文件的数据
         self.img_path = ""  # 当前树状图选中文件的图片地址
         self.m_drag = False  # 允许鼠标拖动的标识
         self.m_DragPosition = 0  # 鼠标拖动位置
         self.logs_counts = 0  # 日志次数（每1w次清屏）
         self.req_logs_counts = 0  # 日志次数（每1w次清屏）
         self.file_main_open_path = ""  # 主界面打开的文件路径
-        self.json_array = {}  # 主界面右侧结果树状数据
+        self.file_data_map: dict[str, ShowData] = {}  # 主界面右侧结果树状数据
 
         self.window_radius = 0  # 窗口四角弧度，为0时表示显示窗口标题栏
         self.window_border = 0  # 窗口描边，为0时表示显示窗口标题栏
@@ -142,8 +142,8 @@ class MyMAinWindow(QMainWindow):
         self.menu_play = None
         self.menu_hide = None
         self.window_marjin = None
-        self.now_show_name = None
-        self.show_name = None
+        self.now_show_name = ""
+        self.show_name = ""
         self.t_net = None
         self.options = None
         # endregion
@@ -812,10 +812,10 @@ class MyMAinWindow(QMainWindow):
         self.Ui.progressBar_scrape.setProperty("value", value)
 
     # region 刮削结果显示
-    def _addTreeChild(self, result, filename):
+    def _addTreeChild(self, success: bool, filename: str):
         node = QTreeWidgetItem()
         node.setText(0, filename)
-        if result == "succ":
+        if success:
             self.item_succ.addChild(node)
         else:
             self.item_fail.addChild(node)
@@ -823,63 +823,19 @@ class MyMAinWindow(QMainWindow):
         # self.Ui.treeWidget_number.setCurrentItem(node)
         # self.Ui.treeWidget_number.scrollToItem(node)
 
-    def show_list_name(
-        self,
-        filename,
-        result,
-        json_data,
-        real_number="",
-    ):
+    def show_list_name(self, filename: str, success: bool, show_data: ShowData, real_number: str):
         # 添加树状节点
-        self._addTreeChild(result, filename)
+        self._addTreeChild(success, filename)
 
         # 解析json_data，以在主界面左侧显示
-        if not json_data.get("number"):
-            json_data["number"] = real_number
-        if not json_data.get("actor"):
-            json_data["actor"] = ""
-        if not json_data.get("title") or result == "fail":
-            json_data["title"] = LogBuffer.error().get()
-        if not json_data.get("outline"):
-            json_data["outline"] = ""
-        if not json_data.get("tag"):
-            json_data["tag"] = ""
-        if not json_data.get("release"):
-            json_data["release"] = ""
-        if not json_data.get("runtime"):
-            json_data["runtime"] = ""
-        if not json_data.get("director"):
-            json_data["director"] = ""
-        if not json_data.get("series"):
-            json_data["series"] = ""
-        if not json_data.get("publisher"):
-            json_data["publisher"] = ""
-        if not json_data.get("studio"):
-            json_data["studio"] = ""
-        if not json_data.get("poster_path"):
-            json_data["poster_path"] = ""
-        if not json_data.get("thumb_path"):
-            json_data["thumb_path"] = ""
-        if not json_data.get("fanart_path"):
-            json_data["fanart_path"] = ""
-        if not json_data.get("website"):
-            json_data["website"] = ""
-        if not json_data.get("source"):
-            json_data["source"] = ""
-        if not json_data.get("c_word"):
-            json_data["c_word"] = ""
-        if not json_data.get("cd_part"):
-            json_data["cd_part"] = ""
-        if not json_data.get("leak"):
-            json_data["leak"] = ""
-        if not json_data.get("mosaic"):
-            json_data["mosaic"] = ""
-        if not json_data.get("actor_href"):
-            json_data["actor_href"] = ""
-        json_data["show_name"] = filename
+        if not show_data.number:
+            show_data.number = real_number
+        if not show_data.title or not success:
+            show_data.title = LogBuffer.error().get()
+        show_data.show_name = filename
         self.show_name = filename
-        signal.add_label_info(json_data)
-        self.json_array[filename] = json_data
+        signal.add_label_info(show_data)
+        self.file_data_map[filename] = show_data
 
     def add_label_info_Thread(self, show_data: Optional[ShowData]):
         try:
@@ -947,7 +903,7 @@ class MyMAinWindow(QMainWindow):
                 show_data.img_path = show_data.fanart_path
             else:
                 show_data.img_path = show_data.thumb_path
-            self.json_data = show_data
+            self.show_data = show_data
             self.img_path = show_data.img_path
             if self.Ui.checkBox_cover.isChecked():  # 主界面显示封面和缩略图
                 poster_path = show_data.poster_path
@@ -1022,14 +978,13 @@ class MyMAinWindow(QMainWindow):
     # 主界面-点击树状条目
     def treeWidget_number_clicked(self, qmodeLindex):
         item = self.Ui.treeWidget_number.currentItem()
-        if item.text(0) != "成功" and item.text(0) != "失败":
+        if item and (file_name := item.text(0)) != "成功" and file_name != "失败":
             try:
-                index_json = str(item.text(0))
-                signal.add_label_info(self.json_array[str(index_json)])
+                signal.add_label_info(self.file_data_map[file_name])
                 if not self.Ui.widget_nfo.isHidden():
                     self._show_nfo_info()
-            except:
-                signal.show_traceback_log(item.text(0) + ": No info!")
+            except Exception:
+                signal.show_traceback_log(file_name + ": No info!")
 
     def _check_main_file_path(self):
         if not self.file_main_open_path:
@@ -1174,7 +1129,7 @@ class MyMAinWindow(QMainWindow):
         """
         主界面点图片
         """
-        self.cutwindow.showimage(self.img_path, self.json_data)
+        self.cutwindow.showimage(self.img_path, self.show_data)
         self.cutwindow.show()
 
     # 主界面-开关封面显示
@@ -1187,40 +1142,39 @@ class MyMAinWindow(QMainWindow):
             self.Ui.label_poster_size.setText("")
             self.Ui.label_thumb_size.setText("")
         else:
-            signal.add_label_info(self.json_data)
+            signal.add_label_info(self.show_data)
 
     # region 主界面编辑nfo
     def _show_nfo_info(self):
         try:
-            json_data = self.json_array[self.show_name]
-            self.now_show_name = json_data["show_name"]
-            title = json_data.get("title")
-            originaltitle = json_data.get("originaltitle")
-            studio = json_data.get("studio")
-            publisher = json_data.get("publisher")
-            year = json_data.get("year")
-            outline = json_data.get("outline")
-            runtime = json_data.get("runtime")
-            director = json_data.get("director")
-            actor = json_data.get("actor")
-            release = json_data.get("release")
-            tag = json_data.get("tag")
-            number = json_data.get("number")
-            cover = json_data.get("cover")
-            poster = json_data.get("poster")
-            website = json_data.get("website")
-            series = json_data.get("series")
-            trailer = json_data.get("trailer")
-            file_path = json_data.get("file_path")
-            number = json_data.get("number")
-            originalplot = json_data.get("originalplot")
-            score = json_data.get("score")
-            wanted = json_data.get("wanted")
-            country = json_data.get("country")
+            json_data = self.file_data_map[self.show_name]
+            self.now_show_name = json_data.show_name
+            title = json_data.title
+            originaltitle = json_data.originaltitle
+            studio = json_data.studio
+            publisher = json_data.publisher
+            year = json_data.year
+            outline = json_data.outline
+            runtime = json_data.runtime
+            director = json_data.director
+            actor = json_data.actor
+            release = json_data.release
+            tag = json_data.tag
+            number = json_data.number
+            cover = json_data.cover
+            poster = json_data.poster
+            website = json_data.website
+            series = json_data.series
+            trailer = json_data.trailer
+            file_path = json_data.file_path
+            originalplot = json_data.originalplot
+            score = json_data.score
+            wanted = json_data.wanted
+            country = json_data.country
             self.Ui.label_nfo.setText(file_path)
             self.Ui.lineEdit_nfo_number.setText(number)
-            if json_data["all_actor"] and "actor_all," in config.nfo_include_new:
-                actor = str(json_data["all_actor"])
+            if json_data.all_actor and "actor_all," in config.nfo_include_new:
+                actor = json_data.all_actor
             self.Ui.lineEdit_nfo_actor.setText(actor)
             self.Ui.lineEdit_nfo_year.setText(year)
             self.Ui.lineEdit_nfo_title.setText(title)
@@ -1253,36 +1207,37 @@ class MyMAinWindow(QMainWindow):
 
     def save_nfo_info(self):
         try:
-            json_data: NFOData = self.json_array[self.now_show_name]
-            file_path = json_data["file_path"]
+            # todo make ShowData and NFOData compatible
+            nfo_data: ShowData = self.file_data_map[self.now_show_name]
+            file_path = nfo_data.file_path
             nfo_path = os.path.splitext(file_path)[0] + ".nfo"
             nfo_folder = split_path(file_path)[0]
-            json_data["number"] = self.Ui.lineEdit_nfo_number.text()
+            nfo_data.number = self.Ui.lineEdit_nfo_number.text()
             if "actor_all," in config.nfo_include_new:
-                json_data["all_actor"] = self.Ui.lineEdit_nfo_actor.text()
-            json_data["actor"] = self.Ui.lineEdit_nfo_actor.text()
-            json_data["year"] = self.Ui.lineEdit_nfo_year.text()
-            json_data["title"] = self.Ui.lineEdit_nfo_title.text()
-            json_data["originaltitle"] = self.Ui.lineEdit_nfo_originaltitle.text()
-            json_data["outline"] = self.Ui.textEdit_nfo_outline.toPlainText()
-            json_data["originalplot"] = self.Ui.textEdit_nfo_originalplot.toPlainText()
-            json_data["tag"] = self.Ui.textEdit_nfo_tag.toPlainText()
-            json_data["release"] = self.Ui.lineEdit_nfo_release.text()
-            json_data["runtime"] = self.Ui.lineEdit_nfo_runtime.text()
-            json_data["score"] = self.Ui.lineEdit_nfo_score.text()
-            json_data["wanted"] = self.Ui.lineEdit_nfo_wanted.text()
-            json_data["director"] = self.Ui.lineEdit_nfo_director.text()
-            json_data["series"] = self.Ui.lineEdit_nfo_series.text()
-            json_data["studio"] = self.Ui.lineEdit_nfo_studio.text()
-            json_data["publisher"] = self.Ui.lineEdit_nfo_publisher.text()
-            json_data["poster"] = self.Ui.lineEdit_nfo_poster.text()
-            json_data["cover"] = self.Ui.lineEdit_nfo_cover.text()
-            json_data["trailer"] = self.Ui.lineEdit_nfo_trailer.text()
-            json_data["website"] = self.Ui.lineEdit_nfo_website.text()
-            json_data["country"] = self.Ui.comboBox_nfo.currentText()
-            if write_nfo(json_data, nfo_path, nfo_folder, file_path, edit_mode=True):
+                nfo_data.all_actor = self.Ui.lineEdit_nfo_actor.text()
+            nfo_data.actor = self.Ui.lineEdit_nfo_actor.text()
+            nfo_data.year = self.Ui.lineEdit_nfo_year.text()
+            nfo_data.title = self.Ui.lineEdit_nfo_title.text()
+            nfo_data.originaltitle = self.Ui.lineEdit_nfo_originaltitle.text()
+            nfo_data.outline = self.Ui.textEdit_nfo_outline.toPlainText()
+            nfo_data.originalplot = self.Ui.textEdit_nfo_originalplot.toPlainText()
+            nfo_data.tag = self.Ui.textEdit_nfo_tag.toPlainText()
+            nfo_data.release = self.Ui.lineEdit_nfo_release.text()
+            nfo_data.runtime = self.Ui.lineEdit_nfo_runtime.text()
+            nfo_data.score = self.Ui.lineEdit_nfo_score.text()
+            nfo_data.wanted = self.Ui.lineEdit_nfo_wanted.text()
+            nfo_data.director = self.Ui.lineEdit_nfo_director.text()
+            nfo_data.series = self.Ui.lineEdit_nfo_series.text()
+            nfo_data.studio = self.Ui.lineEdit_nfo_studio.text()
+            nfo_data.publisher = self.Ui.lineEdit_nfo_publisher.text()
+            nfo_data.poster = self.Ui.lineEdit_nfo_poster.text()
+            nfo_data.cover = self.Ui.lineEdit_nfo_cover.text()
+            nfo_data.trailer = self.Ui.lineEdit_nfo_trailer.text()
+            nfo_data.website = self.Ui.lineEdit_nfo_website.text()
+            nfo_data.country = self.Ui.comboBox_nfo.currentText()
+            if write_nfo(nfo_data, nfo_path, nfo_folder, file_path, edit_mode=True):
                 self.Ui.label_save_tips.setText(f"已保存! {get_current_time()}")
-                signal.add_label_info(json_data)
+                signal.add_label_info(nfo_data)
             else:
                 self.Ui.label_save_tips.setText(f"保存失败! {get_current_time()}")
         except:

@@ -228,7 +228,6 @@ def check_missing_number(actor_flag):
             json_data = json.load(data)
         for movie_path in all_movie_list:
             nfo_path = os.path.splitext(movie_path)[0] + ".nfo"
-            json_data_temp = {}
             number = ""
             if json_data.get(movie_path):
                 number, has_sub = json_data.get(movie_path)
@@ -240,23 +239,14 @@ def check_missing_number(actor_flag):
                     number_result = re.findall(r"<num>(.+)</num>", nfo_content)
                     if number_result:
                         number = number_result[0]
-
                         if "<genre>中文字幕</genre>" in nfo_content or "<tag>中文字幕</tag>" in nfo_content:
                             has_sub = True
                         else:
                             has_sub = False
                 if not number:
-                    (
-                        json_data_temp,
-                        number,
-                        folder_old_path,
-                        file_name,
-                        file_ex,
-                        sub_list,
-                        file_show_name,
-                        file_show_path,
-                    ) = get_file_info(movie_path, copy_sub=False)
-                    has_sub = json_data_temp["has_sub"]  # 视频中文字幕标识
+                    file_info = get_file_info(movie_path, copy_sub=False)
+                    number = file_info.number
+                    has_sub = file_info.has_sub  # 视频中文字幕标识
                 cn_word_icon = "🀄️" if has_sub else ""
                 signal.show_log_text(f"   发现新番号：{number:<10} {cn_word_icon}")
             temp_number = re.findall(r"\d{3,}([a-zA-Z]+-\d+)", number)  # 去除前缀，因为 javdb 不带前缀

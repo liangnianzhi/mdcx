@@ -10,13 +10,13 @@ from models.base.file import delete_file, split_path
 from models.base.number import deal_actor_more, get_number_first_letter, get_number_letters
 from models.base.utils import convert_path, get_used_time
 from models.config.config import config
-from models.core.json_data import LogBuffer, NFOData
+from models.core.json_data import LogBuffer, ShowData
 from models.core.utils import get_new_release
 from models.signals import signal
 
 
 def write_nfo(
-    data: NFOData,
+    data: ShowData,
     nfo_new_path: str,
     folder_new_path: str,
     file_path: str,
@@ -392,8 +392,8 @@ def write_nfo(
         return False
 
 
-def get_nfo_data(appoint_number: str, file_path: str, movie_number: str) -> tuple[bool, NFOData]:
-    nfo_data = NFOData()  # 使用新的数据类创建函数
+def get_nfo_data(appoint_number: str, file_path: str, movie_number: str) -> tuple[bool, ShowData]:
+    nfo_data = ShowData()  # 使用新的数据类创建函数
     local_nfo_path = os.path.splitext(file_path)[0] + ".nfo"
     local_nfo_name = split_path(local_nfo_path)[1]
     file_folder = split_path(file_path)[0]
@@ -510,7 +510,7 @@ def get_nfo_data(appoint_number: str, file_path: str, movie_number: str) -> tupl
         nfo_data.mosaic = "动漫"
 
     # 获取只有标签的标签（因为启用字段翻译后，会再次重复添加字幕、演员、发行、系列等字段）
-    replace_keys = set(filter(None, ["：", ":"] + re.split(r"[,，]", actor)))
+    replace_keys = set(filter(None, ["：", ":"] + re.split(r"[,，]", nfo_data.actor)))
     temp_tag_list = list(filter(None, re.split(r"[,，]", tag.replace("中文字幕", ""))))
     only_tag_list = temp_tag_list.copy()
     for each_tag in temp_tag_list:

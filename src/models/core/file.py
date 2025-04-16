@@ -467,7 +467,7 @@ def _generate_file_name(file_path: str, file_info: FileInfo, movie_data: MovieDa
 
 
 # 此函数是原 JsonData 的构造位置, 需拆分
-def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str, str, str, str, list[str], str, str]:
+def get_file_info(file_path: str, copy_sub: bool = True) -> FileInfo:
     file_info = FileInfo()  # 使用 dataclass 创建实例而不是字典
     movie_number = ""
     has_sub = False
@@ -497,11 +497,11 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
 
     # 获取文件名
     folder_path, file_full_name = split_path(file_path)  # 获取去掉文件名的路径、完整文件名（含扩展名）
-    file_name, file_ex = os.path.splitext(file_full_name)  # 获取文件名（不含扩展名）、扩展名(含有.)
-    file_name_temp = file_name + "."
-    nfo_old_name = file_name + ".nfo"
+    file_name_no_ext, file_ext = os.path.splitext(file_full_name)  # 获取文件名（不含扩展名）、扩展名(含有.)
+    file_name_temp = file_name_no_ext + "."
+    nfo_old_name = file_name_no_ext + ".nfo"
     nfo_old_path = os.path.join(folder_path, nfo_old_name)
-    file_show_name = file_name
+    file_show_name = file_name_no_ext
 
     # 软链接时，获取原身路径(用来查询原身文件目录是否有字幕)
     file_ori_path_no_ex = ""
@@ -514,7 +514,7 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
         prevent_char = config.prevent_char
         if prevent_char:
             file_path = file_path.replace(prevent_char, "")
-            file_name = file_name.replace(prevent_char, "")
+            file_name_no_ext = file_name_no_ext.replace(prevent_char, "")
 
         # 获取番号
         if not movie_number:
@@ -525,7 +525,7 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
         file_info.short_number = temp_n[0] if temp_n else ""
 
         # 去掉各种乱七八糟的字符
-        file_name_cd = remove_escape_string(file_name, "-").replace(movie_number, "-").replace("--", "-").strip()
+        file_name_cd = remove_escape_string(file_name_no_ext, "-").replace(movie_number, "-").replace("--", "-").strip()
 
         # 替换分隔符为-
         cd_char = config.cd_char
@@ -685,8 +685,8 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
         sub_type_list = config.sub_type.split("|")  # 本地字幕后缀
         for sub_type in sub_type_list:  # 查找本地字幕, 可能多个
             sub_type_chs = ".chs" + sub_type
-            sub_path_chs = os.path.join(folder_path, (file_name + sub_type_chs))
-            sub_path = os.path.join(folder_path, (file_name + sub_type))
+            sub_path_chs = os.path.join(folder_path, (file_name_no_ext + sub_type_chs))
+            sub_path = os.path.join(folder_path, (file_name_no_ext + sub_type))
             if os.path.exists(sub_path_chs):
                 sub_list.append(sub_type_chs)
                 c_word = cnword_style  # 中文字幕影片后缀
@@ -767,11 +767,11 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
             if subtitle_add == "on" and subtitle_folder:  # 复制字幕开
                 for sub_type in sub_type_list:
                     sub_path_1 = os.path.join(subtitle_folder, (movie_number + cd_part + sub_type))
-                    sub_path_2 = os.path.join(subtitle_folder, file_name + sub_type)
+                    sub_path_2 = os.path.join(subtitle_folder, file_name_no_ext + sub_type)
                     sub_path_list = [sub_path_1, sub_path_2]
-                    sub_file_name = file_name + sub_type
+                    sub_file_name = file_name_no_ext + sub_type
                     if config.subtitle_add_chs == "on":
-                        sub_file_name = file_name + ".chs" + sub_type
+                        sub_file_name = file_name_no_ext + ".chs" + sub_type
                         sub_type = ".chs" + sub_type
                     sub_new_path = os.path.join(folder_path, sub_file_name)
                     for sub_path in sub_path_list:
@@ -814,7 +814,14 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
     file_info.mosaic = mosaic
     file_info.file_path = convert_path(file_path)
 
-    return file_info, movie_number, folder_path, file_name, file_ex, sub_list, file_show_name, file_show_path
+    # return file_info, movie_number, folder_path, file_name, file_ex, sub_list, file_show_name, file_show_path
+    file_info.folder_path = folder_path
+    file_info.file_name_no_ext = file_name_no_ext
+    file_info.file_ext = file_ext
+    file_info.sub_list = sub_list
+    file_info.file_show_name = file_show_name
+    file_info.file_show_path = file_show_path
+    return file_info
 
 
 def move_file_to_failed_folder(

@@ -94,53 +94,6 @@ class ImageData(TypedDict):  # 25
     # amazon_orginaltitle_actor: str  # #meta
 
 
-@dataclass
-class NFOData:
-    nfo_can_translate: bool = False
-    c_word: str = ""  # #meta
-    cd_part: str = ""  # #meta
-    originaltitle: str = ""  # #movie
-    originalplot: str = ""  # #movie
-    title: str = ""  # #movie
-    studio: str = ""  # #movie
-    publisher: str = ""  # #movie
-    year: str = ""  # #movie
-    outline: str = ""  # #movie
-    outline_from: str = ""  # #meta
-    country: str = ""  # #movie
-    runtime: str = ""  # #movie
-    director: str = ""  # #movie
-    actor: str = ""  # #movie
-    all_actor: str = ""  # #movie
-    release: str = ""  # #movie
-    tag: str = ""  # #movie
-    tag_only: str = ""
-    number: str = ""  # #movie
-    cover: str = ""  # #movie
-    poster: str = ""  # #movie
-    website: str = ""  # #movie
-    series: str = ""  # #movie
-    mosaic: str = ""  # #movie
-    definition: str = ""
-    trailer: str = ""  # #movie
-    letters: str = ""  # #meta
-    wanted: str = ""  # #movie
-    score: str = ""  # #movie
-    originaltitle_amazon: str = ""  # #meta
-    actor_amazon: List[str] = field(default_factory=list)  # #meta
-    source: str = ""  # #movie
-    poster_from: str = ""  # #meta
-    cover_from: str = ""  # #meta
-    extrafanart_from: str = ""  # #meta
-    trailer_from: str = ""  # #meta
-    appoint_number: str = ""  # #meta
-    javdbid: str = ""
-    cover_list: List[Tuple[str, str]] = field(default_factory=list)  # #meta
-    poster_path: str = ""
-    thumb_path: str = ""
-    fanart_path: str = ""
-
-
 # core/translate.py 使用的字段
 class TranslateData(TypedDict):  # 17
     # title: str  # #movie
@@ -200,6 +153,25 @@ class ShowData:
     img_path: str = ""
     country: str = ""  # #movie
 
+    # used in _show_nfo_info
+    originaltitle: str = ""  # #movie
+    cover: str = ""  # #movie
+    poster: str = ""  # #movie
+    trailer: str = ""  # #movie
+    originalplot: str = ""  # #movie
+    wanted: str = ""  # #movie
+    score: str = ""  # #movie
+
+    # compatible with NFOData
+    javdbid: str = ""
+    letters: str = ""  # #meta
+    outline_from: str = ""  # #meta
+    tag_only: str = ""
+    cover_list: List[Tuple[str, str]] = field(default_factory=list)  # #meta
+    actor_amazon: List[str] = field(default_factory=list)  # #meta
+    originaltitle_amazon: str = ""  # #meta
+    nfo_can_translate: bool = False  # todo remove this
+
 
 @dataclass
 class FileInfo:
@@ -233,6 +205,15 @@ class FileInfo:
     fanart_path: str = ""
     dont_move_movie: bool = False
     del_file_path: bool = False
+
+    # 精简 get_file_info return value
+    # movie_number = number
+    folder_path: str = ""
+    file_name_no_ext: str = ""
+    file_ext: str = ""
+    sub_list: list[str] = field(default_factory=list)
+    file_show_name: str = ""
+    file_show_path: str = ""
 
 
 # get_output_name/_get_folder_path/_generate_file_name 使用的字段
@@ -295,7 +276,6 @@ class JsonData(ImageData, TranslateData, PathInfo, InputInfo):  # 71
 # fmt: off
 def new_json_data() -> JsonData:
     return {
-        # "_4K": "",                              # FileInfo
         "actor_amazon": [],                     # ImageData, NFOData
         "actor_href": "",                       # FileInfo, ShowData, TranslateData
         "all_actor_photo": {},                  # Other
@@ -306,18 +286,13 @@ def new_json_data() -> JsonData:
         "cd_part": "",                          # ImageData, NFOData, PathInfo, FileInfo, TranslateData, ShowData
         "cover_size": (0, 0),                   # ImageData
         "definition": "",                       # NFOData, PathInfo, ShowData
-        # "del_file_path": False,                 # FileInfo
         "destroyed": "",                        # FileInfo, PathInfo, ShowData
-        # "dont_move_movie": False,               # FileInfo
         "fanart_marked": True,                  # FileInfo, ImageData
         "fanart_path": "",                      # FileInfo, ImageData, NFOData, ShowData
         "file_path": "",                        # FileInfo, ShowData, TranslateData
         "has_sub": False,                       # FileInfo, TranslateData, ShowData
-        # "img_path": "",                         # ShowData
-        # "javdbid": "",                          # NFOData
         "leak": "",                             # FileInfo, PathInfo, ShowData
         "mosaic": "",                           # ImageData, NFOData, PathInfo, FileInfo, TranslateData, ShowData
-        # "nfo_can_translate": False,             # NFOData
         "number": "",                           # NFOData, PathInfo, ShowData, FileInfo, TranslateData
         "originaltitle_amazon": "",             # ImageData, NFOData
         "poster_big": False,                    # ImageData
@@ -326,9 +301,7 @@ def new_json_data() -> JsonData:
         "poster_size": (0, 0),                  # ImageData
         "release": "",                          # NFOData, PathInfo, ShowData
         "short_number": "",                     # FileInfo
-        # "show_name": "",                        # ShowData
         "source": "",                           # NFOData, ShowData
-        # "tag_only": "",                         # NFOData
         "thumb_marked": True,                   # FileInfo, ImageData
         "thumb_path": "",                       # FileInfo, ImageData, NFOData, ShowData
         "title": "",                            # NFOData, PathInfo, ShowData, TranslateData
@@ -336,6 +309,7 @@ def new_json_data() -> JsonData:
         "website_name": "",                     # FileInfo
         "wuma": "",                             # FileInfo, PathInfo
         "youma": "",                             # FileInfo, PathInfo
+        # "_4K": "",                              # FileInfo
         # "actor_photo": "",                      # Other
         # "actor": "",                            # NFOData, PathInfo, TranslateData, ShowData
         # "amazon_orginaltitle_actor": "",        # ImageData
@@ -343,12 +317,17 @@ def new_json_data() -> JsonData:
         # "cover_from": "",                       # ImageData, NFOData, ShowData
         # "cover_list": [],                       # ImageData, NFOData
         # "cover": "",                            # ImageData, NFOData
+        # "del_file_path": False,                 # FileInfo
         # "director": "",                         # NFOData, PathInfo, ShowData, TranslateData
+        # "dont_move_movie": False,               # FileInfo
         # "extrafanart_from": "",                 # NFOData, ShowData
         # "extrafanart": [],                      # ImageData
         # "fields_info": "",                      # Other
         # "image_download": False,                # ImageData
+        # "img_path": "",                         # ShowData
+        # "javdbid": "",                          # NFOData
         # "letters": "",                          # NFOData, PathInfo, FileInfo, TranslateData
+        # "nfo_can_translate": False,             # NFOData
         # "originalplot": "",                     # NFOData
         # "originaltitle": "",                    # NFOData, PathInfo
         # "outline_from": "",                     # NFOData, TranslateData
@@ -359,7 +338,9 @@ def new_json_data() -> JsonData:
         # "runtime": "",                          # NFOData, PathInfo, ShowData
         # "score": "0.0",                         # NFOData, PathInfo
         # "series": "",                           # NFOData, PathInfo, ShowData, TranslateData
+        # "show_name": "",                        # ShowData
         # "studio": "",                           # NFOData, PathInfo, ShowData, TranslateData
+        # "tag_only": "",                         # NFOData
         # "tag": "",                              # NFOData, TranslateData, FileInfo, ShowData
         # "trailer_from": "",                     # ImageData, NFOData, ShowData
         # "trailer": "",                          # ImageData, NFOData

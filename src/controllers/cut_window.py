@@ -1,6 +1,8 @@
 import os
 import threading
 import traceback
+import typing
+from typing import Optional
 
 from PIL import Image
 from PyQt5.QtCore import QPoint, QRect, Qt
@@ -9,10 +11,13 @@ from PyQt5.QtWidgets import QDialog, QFileDialog, QPushButton
 
 import models.core.file
 import models.core.image
-import models.core.scraper
 from models.base.file import delete_file, split_path
 from models.config.config import config
+from models.core.json_data import ShowData
 from views.posterCutTool import Ui_Dialog_cut_poster
+
+if typing.TYPE_CHECKING:
+    from controllers.main_window.main_window import MyMAinWindow
 
 
 class DraggableButton(QPushButton):
@@ -53,6 +58,7 @@ class DraggableButton(QPushButton):
 class CutWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.main_window: "MyMAinWindow" = self.parent()
         self.Ui = Ui_Dialog_cut_poster()  # 实例化 Ui
         self.Ui.setupUi(self)  # 初始化Ui
         self.m_drag = True  # 允许拖动
@@ -152,13 +158,13 @@ class CutWindow(QDialog):
     # 打开图片选择框
     def open_image(self):
         img_path, img_type = QFileDialog.getOpenFileName(
-            None, "打开图片", "", "*.jpg *.png;;All Files(*)", options=self.parent().options
+            None, "打开图片", "", "*.jpg *.png;;All Files(*)", options=self.main_window.options
         )
         if img_path:
             self.showimage(img_path)
 
     # 显示要裁剪的图片
-    def showimage(self, img_path="", json_data={}):
+    def showimage(self, img_path="", show_data: Optional[ShowData] = None):
         # self.Ui.Dialog_cut_poster.setText(' ')                                # 清空背景
         self.Ui.label_backgroud_pic.setText(" ")  # 清空背景
 
@@ -208,7 +214,7 @@ class CutWindow(QDialog):
             img_name, img_ex = os.path.splitext(img_fullname)
 
             # 如果没有json_data，则通过图片文件名或nfo文件名获取，目的是用来获取水印
-            if not json_data:
+            if not show_data:
                 # 根据图片文件名获取获取水印情况
                 temp_path = img_path
                 # 如果图片没有番号信息，则根据nfo文件名获取水印情况
@@ -218,23 +224,23 @@ class CutWindow(QDialog):
                         if ".nfo" in each:
                             temp_path = os.path.join(img_folder, each)
                             break
-                (
-                    json_data,
-                    movie_number,
-                    folder_old_path,
-                    file_name,
-                    file_ex,
-                    sub_list,
-                    file_show_name,
-                    file_show_path,
-                ) = models.core.file.get_file_info(temp_path, copy_sub=False)
+                file_info = models.core.file.get_file_info(temp_path, copy_sub=False)
+                number = file_info.number
+                has_sub = file_info.has_sub
+                mosaic = file_info.mosaic
+                definition = file_info.definition
+            else:
+                number = show_data.number
+                has_sub = show_data.has_sub
+                mosaic = show_data.mosaic
+                definition = show_data.definition
 
-            self.setWindowTitle(json_data.get("number") + " 封面图片裁剪")  # 设置窗口标题
+            self.setWindowTitle(number + " 封面图片裁剪")  # 设置窗口标题
 
             # 获取水印信息
-            has_sub = json_data["has_sub"]
-            mosaic = json_data["mosaic"]
-            definition = json_data["definition"]
+            has_sub = has_sub
+            mosaic = mosaic
+            definition = definition
 
             # 获取裁剪后的的poster和thumb路径
             poster_path = os.path.join(img_folder, "poster.jpg")
@@ -368,7 +374,7 @@ class CutWindow(QDialog):
         if not img_path or not os.path.exists(img_path):
             return
         thumb_path = self.cut_thumb_path  # 裁剪后的thumb路径
-        self.parent().img_path = img_path  # 裁剪后更新图片url，这样再次点击时才可以重新加载并裁剪
+        self.main_window.img_path = img_path  # 裁剪后更新图片url，这样再次点击时才可以重新加载并裁剪
 
         # 读取配置信息
         mark_list = []
@@ -391,7 +397,7 @@ class CutWindow(QDialog):
         try:
             img = Image.open(img_path)
         except:
-            self.parent().show_log_text(f"{traceback.format_exc()}\n Open Pic: {img_path}")
+            self.main_window.show_log_text(f"{traceback.format_exc()}\n Open Pic: {img_path}")
             return False
         img = img.convert("RGB")
         img_new_png = img.crop((self.c_x, self.c_y, self.c_x2, self.c_y2))
@@ -399,7 +405,7 @@ class CutWindow(QDialog):
             if os.path.exists(self.cut_poster_path):
                 delete_file(self.cut_poster_path)
         except Exception as e:
-            self.parent().show_log_text(" 🔴 Failed to remove old poster!\n    " + str(e))
+            self.main_window.show_log_text(" 🔴 Failed to remove old poster!\n    " + str(e))
             return False
         img_new_png.save(self.cut_poster_path, quality=95, subsampling=0)
         # poster加水印
@@ -432,8 +438,8 @@ class CutWindow(QDialog):
         img_new_png.close()
 
         # 在主界面显示预览
-        self.parent().set_pixmap_thread(self.cut_poster_path, thumb_path, poster_from="cut", cover_from="local")
-        self.parent().change_to_mainpage.emit("")
+        self.main_window.set_pixmap_thread(self.cut_poster_path, thumb_path, poster_from="cut", cover_from="local")
+        self.main_window.change_to_mainpage.emit("")
         return True
 
     def mousePressEvent(self, e):
