@@ -38,6 +38,8 @@ class EMbyActressInfo:
 
 @dataclass
 class MovieData:
+    """刮削器需返回的影片数据"""
+
     number: str
     title: str
     originaltitle: str
@@ -169,7 +171,6 @@ class Metadata:
     cover_from: str = ""
     extrafanart_from: str = ""
     trailer_from: str = ""
-    image_download: bool = False
     amazon_orginaltitle_actor: str = ""
     cover_list: list = field(default_factory=list)
 

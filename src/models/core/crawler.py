@@ -422,7 +422,7 @@ def _deal_each_field(
                             continue
             if field_name == "poster":
                 final_res.metadata.poster_from = website
-                final_res.metadata.image_download = web_data_json.image_download
+                final_res.data.image_download = web_data_json.image_download
             elif field_name == "cover":
                 final_res.metadata.cover_from = website
             elif field_name == "extrafanart":

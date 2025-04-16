@@ -52,7 +52,12 @@ from models.tools.emby_actor_info import creat_kodi_actors
 # call chain: start_new_scrape -> scrape -> _scrape_exec_thread -> _scrape_one_file
 
 
-def _scrape_one_file(file_path: str, file_info_tuple: tuple, file_mode: FileMode) -> tuple[bool, JsonData]:
+def _scrape_one_file(
+    file_path: str,
+    success_folder: str,
+    file_info_tuple: tuple,
+    file_mode: FileMode,
+) -> tuple[bool, JsonData]:
     # 处理单个文件刮削
     # 初始化所需变量
     start_time = time.time()
@@ -61,22 +66,10 @@ def _scrape_one_file(file_path: str, file_info_tuple: tuple, file_mode: FileMode
     file_path = convert_path(file_path)
 
     # 获取文件信息
-    file_info, movie_number, folder_old_path, file_name, file_ex, sub_list, file_show_name, file_show_path = (
-        file_info_tuple
-    )
+    file_info, movie_number, folder_old_path, file_name, file_ex, sub_list, _, _ = file_info_tuple
     file_info = cast(FileInfo, file_info)
     json_data = new_json_data()
     json_data.update(file_info)  # type: ignore
-    # 获取设置的媒体目录、失败目录、成功目录
-    (
-        _,
-        success_folder,
-        failed_folder,
-        _,
-        _,
-        _,
-    ) = get_movie_path_setting(file_path)
-    json_data["failed_folder"] = failed_folder
 
     # 检查文件大小
     valid, outline, tag = check_file(file_path, file_escape_size)
@@ -171,10 +164,9 @@ def _scrape_one_file(file_path: str, file_info_tuple: tuple, file_mode: FileMode
             json_data_new["mosaic"] = json_data["mosaic"]
         json_data.update(json_data_new)
     elif not nfo_update:
-        json_data = crawl(json_data, file_mode)
+        crawl_res = crawl(json_data, file_mode)
 
     # 显示json_data结果或日志
-    json_data["failed_folder"] = failed_folder
     if not show_data_result(json_data["title"], json_data["fields_info"], start_time):
         return False, json_data  # 返回MDCx1_1main, 继续处理下一个文件
 
@@ -229,7 +221,7 @@ def _scrape_one_file(file_path: str, file_info_tuple: tuple, file_mode: FileMode
 
     # 判断输出文件夹和文件是否已存在，如无则创建输出文件夹
     if not creat_folder(
-        json_data,
+        file_info,
         folder_new_path,
         file_path,
         file_new_path,
@@ -255,10 +247,10 @@ def _scrape_one_file(file_path: str, file_info_tuple: tuple, file_mode: FileMode
     # 视频模式（仅根据刮削数据把电影命名为番号并分类到对应目录名称的文件夹下）
     if config.main_mode == 2:
         # 移动文件
-        if move_movie(json_data, file_path, file_new_path):
+        if move_movie(file_info, file_path, file_new_path):
             if "sort_del" in config.switch_on:
                 deal_old_files(
-                    json_data,
+                    file_info,
                     folder_old_path,
                     folder_new_path,
                     file_path,
@@ -280,7 +272,7 @@ def _scrape_one_file(file_path: str, file_info_tuple: tuple, file_mode: FileMode
 
     # 清理旧的thumb、poster、fanart、extrafanart、nfo
     pic_final_catched, single_folder_catched = deal_old_files(
-        json_data,
+        file_info,
         folder_old_path,
         folder_new_path,
         file_path,
@@ -448,9 +440,18 @@ def _scrape_exec_thread(task: tuple[str, int, int]) -> None:
     if config.scrape_like == "single" and file_mode != FileMode.Single and config.main_mode != 4:
         LogBuffer.log().write(f"\n 😸 [Note] You specified 「 {website_single} 」, some videos may not have results! ")
 
+        # 获取设置的媒体目录、失败目录、成功目录
+    (
+        _,
+        success_folder,
+        failed_folder,
+        _,
+        _,
+        _,
+    ) = get_movie_path_setting(file_path)
     # 获取刮削数据
     try:
-        scrape_success, json_data = _scrape_one_file(file_path, file_info_tuple, file_mode)
+        scrape_success, json_data = _scrape_one_file(file_path, success_folder, file_info_tuple, file_mode)
         if LogBuffer.req().get() != "do_not_update_json_data_dic":
             Flags.json_data_dic.update({movie_number: json_data})
     except Exception as e:
@@ -491,9 +492,7 @@ def _scrape_exec_thread(task: tuple[str, int, int]) -> None:
                     LogBuffer.log().write(
                         "\n 🔴 该问题为权限问题：请尝试以管理员身份运行，同时关闭其他正在运行的Python脚本！"
                     )
-            fail_file_path = move_file_to_failed_folder(
-                json_data, json_data["failed_folder"], file_path, folder_old_path
-            )
+            fail_file_path = move_file_to_failed_folder(json_data, failed_folder, file_path, folder_old_path)
             Flags.failed_list.append([fail_file_path, LogBuffer.error().get()])
             Flags.failed_file_list.append(fail_file_path)
             _failed_file_info_show(str(Flags.fail_count), fail_file_path, LogBuffer.error().get())
