@@ -236,7 +236,35 @@ class FileInfo(TypedDict):
     del_file_path: bool
 
 
-class JsonData(ImageData, NFOData, TranslateData, ShowData, FileInfo, Other):
+# get_output_name/_get_folder_path/_generate_file_name 使用的字段
+class PathInfo(TypedDict):
+    destroyed: str
+    leak: str
+    wuma: str
+    youma: str
+    c_word: str
+    title: str
+    originaltitle: str
+    studio: str
+    publisher: str
+    year: str
+    outline: str
+    runtime: str
+    director: str
+    actor: str
+    release: str
+    number: str
+    series: str
+    mosaic: str
+    definition: str
+    letters: str
+    cd_part: str
+    all_actor: str
+    score: str
+    wanted: str
+
+
+class JsonData(ImageData, NFOData, TranslateData, ShowData, FileInfo, PathInfo, Other):
     pass
 
 

@@ -23,14 +23,14 @@ from models.base.utils import convert_path, get_current_time, get_used_time
 from models.config.config import config
 from models.config.resources import resources
 from models.core.flags import Flags
-from models.core.json_data import FileInfo, JsonData, LogBuffer, new_json_data
+from models.core.json_data import FileInfo, LogBuffer, PathInfo, new_json_data
 from models.core.utils import get_movie_path_setting, get_new_release, nfd2c
 from models.data_models import FileMode
 from models.signals import signal
 
 
 def get_output_name(
-    json_data: JsonData, file_path: str, success_folder: str, file_ex: str
+    json_data: PathInfo, file_path: str, success_folder: str, file_ex: str
 ) -> tuple[str, str, str, str, str, str, str, str, str, str]:
     # =====================================================================================更新输出文件夹名
     folder_new_path = _get_folder_path(file_path, success_folder, json_data)
@@ -78,7 +78,7 @@ def get_output_name(
     )
 
 
-def _get_folder_path(file_path: str, success_folder: str, json_data: JsonData) -> str:
+def _get_folder_path(file_path: str, success_folder: str, json_data: PathInfo) -> str:
     folder_name = config.folder_name.replace("\\", "/")  # 设置-命名-视频目录名
     folder_path, file_name = split_path(file_path)  # 当前文件的目录和文件名
     filename = os.path.splitext(file_name)[0]
@@ -273,7 +273,7 @@ def _get_folder_path(file_path: str, success_folder: str, json_data: JsonData) -
     return folder_new_path.strip().replace(" /", "/")
 
 
-def _generate_file_name(file_path: str, json_data: JsonData) -> str:
+def _generate_file_name(file_path: str, json_data: PathInfo) -> str:
     file_full_name = split_path(file_path)[1]
     file_name, file_ex = os.path.splitext(file_full_name)
     filename = file_name
@@ -1414,6 +1414,100 @@ def deal_old_files(
     return pic_final_catched, single_folder_catched
 
 
+def move_movie(file_info: FileInfo, file_path: str, file_new_path: str) -> bool:
+    # 明确不需要移动的，直接返回
+    if file_info["dont_move_movie"]:
+        LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_path}")
+        return True
+
+    # 明确要删除自己的，删除后返回
+    if file_info["del_file_path"]:
+        delete_file(file_path)
+        LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_new_path}")
+        file_info["file_path"] = file_new_path
+        return True
+
+    # 软链接模式开时，先删除目标文件，再创建软链接(需考虑自身是软链接的情况)
+    if config.soft_link == 1:
+        temp_path = file_path
+        # 自身是软链接时，获取真实路径
+        if os.path.islink(file_path):
+            file_path = read_link(file_path)  # delete_file(temp_path)
+        # 删除目标路径存在的文件，否则会创建失败，
+        delete_file(file_new_path)
+        try:
+            os.symlink(file_path, file_new_path)
+            file_info["file_path"] = file_new_path
+            LogBuffer.log().write(
+                f"\n 🍀 Softlink done! \n    Softlink file: {file_new_path} \n    Source file: {file_path}"
+            )
+            return True
+        except Exception as e:
+            if config.is_windows:
+                LogBuffer.log().write(
+                    "\n 🥺 Softlink failed! (创建软连接失败！"
+                    "注意：Windows 平台输出目录必须是本地磁盘！不支持挂载的 NAS 盘或网盘！"
+                    f"如果是本地磁盘，请尝试以管理员身份运行！)\n{str(e)}\n 🙉 [Movie] {temp_path}"
+                )
+            else:
+                LogBuffer.log().write(f"\n 🥺 Softlink failed! (创建软连接失败！)\n{str(e)}\n 🙉 [Movie] {temp_path}")
+            signal.show_traceback_log(traceback.format_exc())
+            signal.show_log_text(traceback.format_exc())
+            return False
+
+    # 硬链接模式开时，创建硬链接
+    elif config.soft_link == 2:
+        try:
+            delete_file(file_new_path)
+            os.link(file_path, file_new_path)
+            file_info["file_path"] = file_new_path
+            LogBuffer.log().write(
+                f"\n 🍀 HardLink done! \n    HadrLink file: {file_new_path} \n    Source file: {file_path}"
+            )
+            return True
+        except Exception as e:
+            if config.is_mac:
+                LogBuffer.log().write(
+                    "\n 🥺 HardLink failed! (创建硬连接失败！"
+                    "注意：硬链接要求待刮削文件和输出目录必须是同盘，不支持跨卷！"
+                    "如要跨卷可以尝试软链接模式！另外，Mac 平台非本地磁盘不支持创建硬链接（权限问题），"
+                    f"请选择软链接模式！)\n{str(e)} "
+                )
+            else:
+                LogBuffer.log().write(
+                    f"\n 🥺 HardLink failed! (创建硬连接失败！注意："
+                    f"硬链接要求待刮削文件和输出目录必须是同盘，不支持跨卷！"
+                    f"如要跨卷可以尝试软链接模式！)\n{str(e)} "
+                )
+            LogBuffer.error().write("创建硬连接失败！")
+            signal.show_traceback_log(traceback.format_exc())
+            signal.show_log_text(traceback.format_exc())
+            return False
+
+    # 其他情况，就移动文件
+    result, error_info = move_file(file_path, file_new_path)
+    if result:
+        LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_new_path}")
+        if os.path.islink(file_new_path):
+            LogBuffer.log().write(
+                f"\n    It's a symlink file! Source file: \n    {read_link(file_new_path)}"  # win 不能用os.path.realpath()，返回的结果不准
+            )
+        file_info["file_path"] = file_new_path
+        return True
+    else:
+        if "are the same file" in error_info.lower():  # 大小写不同，win10 用raidrive 挂载 google drive 改名会出错
+            if file_info["cd_part"]:
+                temp_folder, temp_file = split_path(file_new_path)
+                if temp_file not in os.listdir(temp_folder):
+                    move_file(file_path, file_new_path + ".MDCx.tmp")
+                    move_file(file_new_path + ".MDCx.tmp", file_new_path)
+            LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_new_path}")
+            file_info["file_path"] = file_new_path
+            return True
+        LogBuffer.log().write(f"\n 🔴 Failed to move movie file to success folder!\n    {error_info}")
+        return False
+
+
 # 以下不需要 json_data
 
 
@@ -1635,100 +1729,6 @@ def move_other_file(number: str, folder_old_path: str, folder_new_path: str, fil
                 ):
                     move_file(old_file_old_path, old_file_new_path)
                     LogBuffer.log().write(f"\n 🍀 Move {old_file} done!")
-
-
-def move_movie(json_data: JsonData, file_path: str, file_new_path: str) -> bool:
-    # 明确不需要移动的，直接返回
-    if json_data["dont_move_movie"]:
-        LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_path}")
-        return True
-
-    # 明确要删除自己的，删除后返回
-    if json_data["del_file_path"]:
-        delete_file(file_path)
-        LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_new_path}")
-        json_data["file_path"] = file_new_path
-        return True
-
-    # 软链接模式开时，先删除目标文件，再创建软链接(需考虑自身是软链接的情况)
-    if config.soft_link == 1:
-        temp_path = file_path
-        # 自身是软链接时，获取真实路径
-        if os.path.islink(file_path):
-            file_path = read_link(file_path)  # delete_file(temp_path)
-        # 删除目标路径存在的文件，否则会创建失败，
-        delete_file(file_new_path)
-        try:
-            os.symlink(file_path, file_new_path)
-            json_data["file_path"] = file_new_path
-            LogBuffer.log().write(
-                f"\n 🍀 Softlink done! \n    Softlink file: {file_new_path} \n    Source file: {file_path}"
-            )
-            return True
-        except Exception as e:
-            if config.is_windows:
-                LogBuffer.log().write(
-                    "\n 🥺 Softlink failed! (创建软连接失败！"
-                    "注意：Windows 平台输出目录必须是本地磁盘！不支持挂载的 NAS 盘或网盘！"
-                    f"如果是本地磁盘，请尝试以管理员身份运行！)\n{str(e)}\n 🙉 [Movie] {temp_path}"
-                )
-            else:
-                LogBuffer.log().write(f"\n 🥺 Softlink failed! (创建软连接失败！)\n{str(e)}\n 🙉 [Movie] {temp_path}")
-            signal.show_traceback_log(traceback.format_exc())
-            signal.show_log_text(traceback.format_exc())
-            return False
-
-    # 硬链接模式开时，创建硬链接
-    elif config.soft_link == 2:
-        try:
-            delete_file(file_new_path)
-            os.link(file_path, file_new_path)
-            json_data["file_path"] = file_new_path
-            LogBuffer.log().write(
-                f"\n 🍀 HardLink done! \n    HadrLink file: {file_new_path} \n    Source file: {file_path}"
-            )
-            return True
-        except Exception as e:
-            if config.is_mac:
-                LogBuffer.log().write(
-                    "\n 🥺 HardLink failed! (创建硬连接失败！"
-                    "注意：硬链接要求待刮削文件和输出目录必须是同盘，不支持跨卷！"
-                    "如要跨卷可以尝试软链接模式！另外，Mac 平台非本地磁盘不支持创建硬链接（权限问题），"
-                    f"请选择软链接模式！)\n{str(e)} "
-                )
-            else:
-                LogBuffer.log().write(
-                    f"\n 🥺 HardLink failed! (创建硬连接失败！注意："
-                    f"硬链接要求待刮削文件和输出目录必须是同盘，不支持跨卷！"
-                    f"如要跨卷可以尝试软链接模式！)\n{str(e)} "
-                )
-            LogBuffer.error().write("创建硬连接失败！")
-            signal.show_traceback_log(traceback.format_exc())
-            signal.show_log_text(traceback.format_exc())
-            return False
-
-    # 其他情况，就移动文件
-    result, error_info = move_file(file_path, file_new_path)
-    if result:
-        LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_new_path}")
-        if os.path.islink(file_new_path):
-            LogBuffer.log().write(
-                f"\n    It's a symlink file! Source file: \n    {read_link(file_new_path)}"  # win 不能用os.path.realpath()，返回的结果不准
-            )
-        json_data["file_path"] = file_new_path
-        return True
-    else:
-        if "are the same file" in error_info.lower():  # 大小写不同，win10 用raidrive 挂载 google drive 改名会出错
-            if json_data["cd_part"]:
-                temp_folder, temp_file = split_path(file_new_path)
-                if temp_file not in os.listdir(temp_folder):
-                    move_file(file_path, file_new_path + ".MDCx.tmp")
-                    move_file(file_new_path + ".MDCx.tmp", file_new_path)
-            LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_new_path}")
-            json_data["file_path"] = file_new_path
-            return True
-        LogBuffer.log().write(f"\n 🔴 Failed to move movie file to success folder!\n    {error_info}")
-        return False
 
 
 def newtdisk_creat_symlink(copy_flag: bool, netdisk_path: str = "", local_path: str = "") -> None:
