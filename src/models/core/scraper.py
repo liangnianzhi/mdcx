@@ -49,6 +49,8 @@ from models.signals import signal
 from models.tools.emby_actor_image import update_emby_actor_photo
 from models.tools.emby_actor_info import creat_kodi_actors
 
+# call chain: start_new_scrape -> scrape -> _scrape_exec_thread -> _scrape_one_file
+
 
 def _scrape_one_file(file_path: str, file_info_tuple: tuple, file_mode: FileMode) -> tuple[bool, JsonData]:
     # 处理单个文件刮削

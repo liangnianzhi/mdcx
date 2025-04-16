@@ -58,7 +58,7 @@ class LogBuffer:
 
 
 # 尚未处理的字段
-class Other(TypedDict):
+class Other(TypedDict):  # 4
     fields_info: str
     failed_folder: str
     actor_photo: str
@@ -66,9 +66,8 @@ class Other(TypedDict):
 
 
 # core/web.py 使用的字段
-class ImageData(TypedDict):
+class ImageData(TypedDict):  # 25
     cd_part: str
-
     cover_size: tuple[int, int]
     poster_big: bool
     poster_marked: bool
@@ -85,7 +84,6 @@ class ImageData(TypedDict):
     cover_from: str
     poster_from: str
     trailer_from: str
-
     number: str
     letters: str
     image_download: bool
@@ -97,7 +95,7 @@ class ImageData(TypedDict):
 
 
 # core/nfo.py 使用的字段
-class NFOData(TypedDict):
+class NFOData(TypedDict):  # 43
     nfo_can_translate: bool
     c_word: str
     cd_part: str
@@ -144,7 +142,7 @@ class NFOData(TypedDict):
 
 
 # core/translate.py 使用的字段
-class TranslateData(TypedDict):
+class TranslateData(TypedDict):  # 17
     title: str
     outline: str
     file_path: str
@@ -165,7 +163,7 @@ class TranslateData(TypedDict):
 
 
 # 主界面展示使用的字段
-class ShowData(TypedDict):
+class ShowData(TypedDict):  # 34
     file_path: str
     number: str
     actor: str
@@ -197,13 +195,12 @@ class ShowData(TypedDict):
     poster_from: str
     extrafanart_from: str
     trailer_from: str
-    file_path: str
     show_name: str
     img_path: str
     country: str
 
 
-class FileInfo(TypedDict):
+class FileInfo(TypedDict):  # 30
     version: int
     number: str
     letters: str
@@ -237,7 +234,7 @@ class FileInfo(TypedDict):
 
 
 # get_output_name/_get_folder_path/_generate_file_name 使用的字段
-class PathInfo(TypedDict):
+class PathInfo(TypedDict):  # 24
     destroyed: str
     leak: str
     wuma: str
@@ -264,82 +261,83 @@ class PathInfo(TypedDict):
     wanted: str
 
 
-class JsonData(ImageData, NFOData, TranslateData, ShowData, FileInfo, PathInfo, Other):
+class JsonData(ImageData, NFOData, TranslateData, ShowData, FileInfo, PathInfo, Other):  # 72
     pass
 
 
+# fmt: off
 def new_json_data() -> JsonData:
     return {
-        "show_name": "",
-        "img_path": "",
-        "tag_only": "",
-        "definition": "",
-        "actor": "",
-        "cover_size": (0, 0),
-        "poster_size": (0, 0),
-        "poster_big": False,
-        "poster_marked": True,
-        "thumb_marked": True,
-        "fanart_marked": True,
-        "cover_list": [],
-        "poster_path": "",
-        "thumb_path": "",
-        "fanart_path": "",
-        "cover": "",
-        "poster": "",
-        "extrafanart": [],
-        "actor_amazon": [],
-        "actor_href": "",
-        "all_actor": "",
-        "actor_photo": "",
-        "all_actor_photo": {},
-        "amazon_orginaltitle_actor": "",
-        "file_path": "",
-        "del_file_path": False,
-        "dont_move_movie": False,
-        "nfo_can_translate": False,
-        "title": "",
-        "outline": "",
-        "failed_folder": "",
-        "version": 0,
-        "image_download": False,
-        "outline_from": "",
-        "cover_from": "",
-        "poster_from": "",
-        "extrafanart_from": "",
-        "trailer_from": "",
-        "short_number": "",
-        "appoint_number": "",
-        "appoint_url": "",
-        "website_name": "",
-        "fields_info": "",
-        "number": "",
-        "letters": "",
-        "has_sub": False,
-        "c_word": "",
-        "cd_part": "",
-        "destroyed": "",
-        "leak": "",
-        "wuma": "",
-        "youma": "",
-        "mosaic": "",
-        "tag": "",
-        "_4K": "",
-        "source": "",
-        "release": "",
-        "year": "",
-        "javdbid": "",
-        "score": "0.0",
-        "originaltitle": "",
-        "studio": "",
-        "publisher": "",
-        "runtime": "",
-        "director": "",
-        "website": "",
-        "series": "",
-        "trailer": "",
-        "originaltitle_amazon": "",
-        "originalplot": "",
-        "wanted": "",
-        "country": "",
+        "show_name": "",                        # ShowData
+        "img_path": "",                         # ShowData
+        "tag_only": "",                         # NFOData
+        "definition": "",                       # NFOData, PathInfo, ShowData
+        "actor": "",                            # NFOData, PathInfo, TranslateData, ShowData
+        "cover_size": (0, 0),                   # ImageData
+        "poster_size": (0, 0),                  # ImageData
+        "poster_big": False,                    # ImageData
+        "poster_marked": True,                  # FileInfo, ImageData
+        "thumb_marked": True,                   # FileInfo, ImageData
+        "fanart_marked": True,                  # FileInfo, ImageData
+        "cover_list": [],                       # ImageData, NFOData
+        "poster_path": "",                      # FileInfo, ImageData, NFOData, ShowData
+        "thumb_path": "",                       # FileInfo, ImageData, NFOData, ShowData
+        "fanart_path": "",                      # FileInfo, ImageData, NFOData, ShowData
+        "cover": "",                            # ImageData, NFOData
+        "poster": "",                           # ImageData, NFOData
+        "extrafanart": [],                      # ImageData
+        "actor_amazon": [],                     # ImageData, NFOData
+        "actor_href": "",                       # FileInfo, ShowData, TranslateData
+        "all_actor": "",                        # FileInfo, PathInfo, ShowData, TranslateData
+        "actor_photo": "",                      # Other
+        "all_actor_photo": {},                  # Other
+        "amazon_orginaltitle_actor": "",        # ImageData
+        "file_path": "",                        # FileInfo, ShowData, TranslateData
+        "del_file_path": False,                 # FileInfo
+        "dont_move_movie": False,               # FileInfo
+        "nfo_can_translate": False,             # NFOData
+        "title": "",                            # NFOData, PathInfo, ShowData, TranslateData
+        "outline": "",                          # NFOData, PathInfo, ShowData, TranslateData
+        "failed_folder": "",                    # Other
+        "version": 0,                           # FileInfo
+        "image_download": False,                # ImageData
+        "outline_from": "",                     # NFOData, TranslateData
+        "cover_from": "",                       # ImageData, NFOData, ShowData
+        "poster_from": "",                      # ImageData, NFOData, ShowData
+        "extrafanart_from": "",                 # NFOData, ShowData
+        "trailer_from": "",                     # ImageData, NFOData, ShowData
+        "short_number": "",                     # FileInfo
+        "appoint_number": "",                   # NFOData, FileInfo
+        "appoint_url": "",                      # FileInfo
+        "website_name": "",                     # FileInfo
+        "fields_info": "",                      # Other
+        "number": "",                           # NFOData, PathInfo, ShowData, FileInfo, TranslateData
+        "letters": "",                          # NFOData, PathInfo, FileInfo, TranslateData
+        "has_sub": False,                       # FileInfo, TranslateData, ShowData
+        "c_word": "",                           # NFOData, PathInfo, FileInfo, ShowData
+        "cd_part": "",                          # ImageData, NFOData, PathInfo, FileInfo, TranslateData, ShowData
+        "destroyed": "",                        # FileInfo, PathInfo, ShowData
+        "leak": "",                             # FileInfo, PathInfo, ShowData
+        "wuma": "",                             # FileInfo, PathInfo
+        "youma": "",                            # FileInfo, PathInfo
+        "mosaic": "",                           # ImageData, NFOData, PathInfo, FileInfo, TranslateData, ShowData
+        "tag": "",                              # NFOData, TranslateData, FileInfo, ShowData
+        "_4K": "",                              # FileInfo
+        "source": "",                           # NFOData, ShowData
+        "release": "",                          # NFOData, PathInfo, ShowData
+        "year": "",                             # NFOData, PathInfo, ShowData
+        "javdbid": "",                          # NFOData
+        "score": "0.0",                         # NFOData, PathInfo
+        "originaltitle": "",                    # NFOData, PathInfo
+        "studio": "",                           # NFOData, PathInfo, ShowData, TranslateData
+        "publisher": "",                        # NFOData, PathInfo, ShowData, TranslateData
+        "runtime": "",                          # NFOData, PathInfo, ShowData
+        "director": "",                         # NFOData, PathInfo, ShowData, TranslateData
+        "website": "",                          # NFOData, ShowData
+        "series": "",                           # NFOData, PathInfo, ShowData, TranslateData
+        "trailer": "",                          # ImageData, NFOData
+        "originaltitle_amazon": "",             # ImageData, NFOData
+        "originalplot": "",                     # NFOData
+        "wanted": "",                           # NFOData, PathInfo
+        "country": "",                          # NFOData, ShowData
     }

@@ -3,7 +3,6 @@
 """
 
 import re
-from dataclasses import asdict
 from typing import Any, Callable
 
 import langid
@@ -134,6 +133,7 @@ def _deal_some_list(field: str, website: str, same_list: list[str]) -> list[str]
     return same_list
 
 
+# used by _call_crawlers and _call_specific_crawler
 def _call_crawler(
     appoint_number: str,
     appoint_url: str,
@@ -271,6 +271,7 @@ def _call_crawler(
     return {website: {"zh_cn": d, "jp": d, "zh_tw": d}}
 
 
+# used by _crawl
 def _decide_websites(
     json_data: JsonData,
     number_website_list: list[str],
@@ -559,6 +560,7 @@ def _decide_websites(
     return json_data
 
 
+# used by _decide_websites
 def _deal_each_field(
     all_json_data: dict[str, dict[str, Any]],
     json_data: JsonData,
@@ -654,6 +656,7 @@ def _deal_each_field(
             json_data["fields_info"] += "\n     " + f"{field_name:<13}" + f": {'-----'} ({'not found'})"
 
 
+# used by _decide_websites
 def _call_crawlers(
     all_json_data: dict[str, dict[str, Any]],
     json_data: JsonData,
@@ -751,6 +754,7 @@ def _call_crawlers(
             LogBuffer.info().write(f"\n    🔴 {field_cnname} 获取失败！")
 
 
+# used by _crawl
 def _call_specific_crawler(json_data: JsonData, website: str) -> JsonData:
     file_number = json_data["number"]
     short_number = json_data["short_number"]
@@ -858,6 +862,7 @@ def _call_specific_crawler(json_data: JsonData, website: str) -> JsonData:
     return json_data
 
 
+# used by crawl
 def _crawl(json_data: JsonData, website_name: str) -> JsonData:  # 从JSON返回元数据
     file_number = json_data["number"]
     file_path = json_data["file_path"]
@@ -873,6 +878,9 @@ def _crawl(json_data: JsonData, website_name: str) -> JsonData:  # 从JSON返回
     destroyed = json_data["destroyed"]
     mosaic = json_data["mosaic"]
     version = json_data["version"]
+    number = json_data["number"]
+    if appoint_number:
+        number = appoint_number
     json_data["title"] = ""
     json_data["fields_info"] = ""
     json_data["all_actor"] = ""
@@ -955,10 +963,6 @@ def _crawl(json_data: JsonData, website_name: str) -> JsonData:  # 从JSON返回
     if json_data["title"] == "":
         return json_data
 
-    number = json_data["number"]
-    if appoint_number:
-        number = appoint_number
-
     # 马赛克
     if leak:
         json_data["mosaic"] = "无码流出"
@@ -1012,13 +1016,14 @@ def _crawl(json_data: JsonData, website_name: str) -> JsonData:  # 从JSON返回
     return json_data
 
 
-def _get_website_name(json_data: JsonData, file_mode: FileMode) -> str:
+# used by crawl
+def _get_website_name(j_website_name: str, file_mode: FileMode) -> str:
     # 获取刮削网站
     website_name = "all"
     if file_mode == FileMode.Single:  # 刮削单文件（工具页面）
         website_name = Flags.website_name
     elif file_mode == FileMode.Again:  # 重新刮削
-        website_temp = json_data["website_name"]
+        website_temp = j_website_name
         if website_temp:
             website_name = website_temp
     elif config.scrape_like == "single":
@@ -1027,13 +1032,15 @@ def _get_website_name(json_data: JsonData, file_mode: FileMode) -> str:
     return website_name
 
 
+# used by _scrape_one_file
 def crawl(json_data: JsonData, file_mode: FileMode) -> JsonData:
     # 从指定网站获取json_data
-    website_name = _get_website_name(json_data, file_mode)
+    website_name = _get_website_name(json_data["website_name"], file_mode)
     json_data = _crawl(json_data, website_name)
     return _deal_json_data(json_data)
 
 
+# used by crawl
 def _deal_json_data(json_data: JsonData) -> JsonData:
     # 标题为空返回
     title = json_data["title"]
