@@ -44,7 +44,7 @@ from models.core.utils import (
     show_data_result,
 )
 from models.core.web import extrafanart_download, fanart_download, poster_download, thumb_download, trailer_download
-from models.data_models import FileMode
+from models.data_models import FileMode, FinalResult
 from models.signals import signal
 from models.tools.emby_actor_image import update_emby_actor_photo
 from models.tools.emby_actor_info import creat_kodi_actors
@@ -71,11 +71,12 @@ def _scrape_one_file(
     json_data = new_json_data()
     json_data.update(file_info)  # type: ignore
 
+    final_res = FinalResult.new_empty()
     # 检查文件大小
     valid, outline, tag = check_file(file_path, file_escape_size)
     if not valid:
-        json_data["outline"] = outline
-        json_data["tag"] = tag
+        final_res.data.outline = outline
+        final_res.data.tag = tag
         return False, json_data
 
     # 读取模式

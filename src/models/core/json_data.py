@@ -1,5 +1,6 @@
 import threading
-from typing import TypedDict
+from dataclasses import dataclass, field
+from typing import List, Tuple, TypedDict
 
 
 class LogBuffer:
@@ -93,51 +94,51 @@ class ImageData(TypedDict):  # 25
     # amazon_orginaltitle_actor: str  # #meta
 
 
-# core/nfo.py 使用的字段
-class NFOData(TypedDict):  # 43
-    nfo_can_translate: bool
-    # c_word: str  # #meta
-    # cd_part: str  # #meta
-    # originaltitle: str  # #movie
-    # originalplot: str  # #movie
-    # title: str  # #movie
-    # studio: str  # #movie
-    # publisher: str  # #movie
-    # year: str  # #movie
-    # outline: str  # #movie
-    # outline_from: str  # #meta
-    # country: str  # #movie
-    # runtime: str  # #movie
-    # director: str  # #movie
-    # actor: str  # #movie
-    # all_actor: str  # #movie
-    # release: str  # #movie
-    # tag: str  # #movie
-    tag_only: str
-    # number: str  # #movie
-    # cover: str  # #movie
-    # poster: str  # #movie
-    # website: str  # #movie
-    # series: str  # #movie
-    # mosaic: str  # #movie
-    definition: str
-    # trailer: str  # #movie
-    # letters: str  # #meta
-    # wanted: str  # #movie
-    # score: str  # #movie
-    # originaltitle_amazon: str  # #meta
-    # actor_amazon: list[str]  # #meta
-    # source: str  # #movie
-    # poster_from: str  # #meta
-    # cover_from: str  # #meta
-    # extrafanart_from: str  # #meta
-    # trailer_from: str  # #meta
-    # appoint_number: str  # #meta
-    javdbid: str
-    # cover_list: list[tuple[str, str]]  # #meta
-    poster_path: str
-    thumb_path: str
-    fanart_path: str
+@dataclass
+class NFOData:
+    nfo_can_translate: bool = False
+    c_word: str = ""  # #meta
+    cd_part: str = ""  # #meta
+    originaltitle: str = ""  # #movie
+    originalplot: str = ""  # #movie
+    title: str = ""  # #movie
+    studio: str = ""  # #movie
+    publisher: str = ""  # #movie
+    year: str = ""  # #movie
+    outline: str = ""  # #movie
+    outline_from: str = ""  # #meta
+    country: str = ""  # #movie
+    runtime: str = ""  # #movie
+    director: str = ""  # #movie
+    actor: str = ""  # #movie
+    all_actor: str = ""  # #movie
+    release: str = ""  # #movie
+    tag: str = ""  # #movie
+    tag_only: str = ""
+    number: str = ""  # #movie
+    cover: str = ""  # #movie
+    poster: str = ""  # #movie
+    website: str = ""  # #movie
+    series: str = ""  # #movie
+    mosaic: str = ""  # #movie
+    definition: str = ""
+    trailer: str = ""  # #movie
+    letters: str = ""  # #meta
+    wanted: str = ""  # #movie
+    score: str = ""  # #movie
+    originaltitle_amazon: str = ""  # #meta
+    actor_amazon: List[str] = field(default_factory=list)  # #meta
+    source: str = ""  # #movie
+    poster_from: str = ""  # #meta
+    cover_from: str = ""  # #meta
+    extrafanart_from: str = ""  # #meta
+    trailer_from: str = ""  # #meta
+    appoint_number: str = ""  # #meta
+    javdbid: str = ""
+    cover_list: List[Tuple[str, str]] = field(default_factory=list)  # #meta
+    poster_path: str = ""
+    thumb_path: str = ""
+    fanart_path: str = ""
 
 
 # core/translate.py 使用的字段
@@ -285,7 +286,7 @@ class InputInfo(TypedDict):
     all_actor_photo: dict  # #movie
 
 
-class JsonData(ImageData, NFOData, TranslateData, ShowData, FileInfo, PathInfo, InputInfo):  # 71
+class JsonData(ImageData, TranslateData, ShowData, FileInfo, PathInfo, InputInfo):  # 71
     pass
 
 
@@ -311,10 +312,10 @@ def new_json_data() -> JsonData:
         "file_path": "",                        # FileInfo, ShowData, TranslateData
         "has_sub": False,                       # FileInfo, TranslateData, ShowData
         "img_path": "",                         # ShowData
-        "javdbid": "",                          # NFOData
+        # "javdbid": "",                          # NFOData
         "leak": "",                             # FileInfo, PathInfo, ShowData
         "mosaic": "",                           # ImageData, NFOData, PathInfo, FileInfo, TranslateData, ShowData
-        "nfo_can_translate": False,             # NFOData
+        # "nfo_can_translate": False,             # NFOData
         "number": "",                           # NFOData, PathInfo, ShowData, FileInfo, TranslateData
         "originaltitle_amazon": "",             # ImageData, NFOData
         "poster_big": False,                    # ImageData
@@ -325,14 +326,14 @@ def new_json_data() -> JsonData:
         "short_number": "",                     # FileInfo
         "show_name": "",                        # ShowData
         "source": "",                           # NFOData, ShowData
-        "tag_only": "",                         # NFOData
+        # "tag_only": "",                         # NFOData
         "thumb_marked": True,                   # FileInfo, ImageData
         "thumb_path": "",                       # FileInfo, ImageData, NFOData, ShowData
         "title": "",                            # NFOData, PathInfo, ShowData, TranslateData
         "version": 0,                           # FileInfo
         "website_name": "",                     # FileInfo
         "wuma": "",                             # FileInfo, PathInfo
-        "youma": "",                            # FileInfo, PathInfo
+        "youma": "",                             # FileInfo, PathInfo
         # "actor_photo": "",                      # Other
         # "actor": "",                            # NFOData, PathInfo, TranslateData, ShowData
         # "amazon_orginaltitle_actor": "",        # ImageData
