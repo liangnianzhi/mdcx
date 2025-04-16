@@ -73,7 +73,11 @@ class MovieData:
 
     @classmethod
     def new_empty(cls) -> "MovieData":
-        """创建一个新的空的 MovieData"""
+        """
+        创建一个新的空的 MovieData. 仅用于特定场景.
+
+        不直接设置字段默认值, 因此要求各刮削器必须显式声明自己不支持的字段.
+        """
         return cls(
             number="",
             title="",
@@ -141,6 +145,8 @@ class CrawlerResult:
 
 @dataclass
 class Metadata:
+    """刮削过程的中间数据及调试信息等"""
+
     letters: str = ""
     short_number: str = ""
     file_path: str = ""
