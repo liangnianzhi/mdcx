@@ -310,7 +310,7 @@ def init_QTreeWidget(self: "MyMAinWindow"):
         self.set_label_file_path.emit(f"🎈 当前刮削路径: \n {get_movie_path_setting()[0]}")  # 主界面右上角显示提示信息
     except:
         signal.show_traceback_log(traceback.format_exc())
-    signal.add_label_info("")
+    signal.add_label_info(None)
     Flags.count_claw = 0  # 批量刮削次数
     if self.Ui.pushButton_start_cap.text() != "开始":
         Flags.count_claw = 1  # 批量刮削次数

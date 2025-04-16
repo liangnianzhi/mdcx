@@ -115,6 +115,7 @@ class MovieData:
             raise TypeError("other must be an instance of MovieData")
         self.__dict__.update(other.__dict__)
 
+    # 不重载 __setitem__ 和 __getitem__ 方法, get/set 作为权宜之计以方便查找调用方, 最终要采用安全的方法
     def get(self, key: str, default=None):
         """获取数据"""
         return self.__dict__.get(key, default)
@@ -173,6 +174,10 @@ class Metadata:
     trailer_from: str = ""
     amazon_orginaltitle_actor: str = ""
     cover_list: list = field(default_factory=list)
+
+
+@dataclass
+class ScrapeContext: ...
 
 
 @dataclass

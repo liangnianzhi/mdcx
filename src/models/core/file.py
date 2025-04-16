@@ -7,7 +7,6 @@ import re
 import shutil
 import time
 import traceback
-from typing import cast
 
 from models.base.file import copy_file, delete_file, move_file, read_link, split_path
 from models.base.number import (
@@ -23,20 +22,24 @@ from models.base.utils import convert_path, get_current_time, get_used_time
 from models.config.config import config
 from models.config.resources import resources
 from models.core.flags import Flags
-from models.core.json_data import FileInfo, LogBuffer, PathInfo, new_json_data
+from models.core.json_data import FileInfo, LogBuffer
 from models.core.utils import get_movie_path_setting, get_new_release, nfd2c
-from models.data_models import FileMode
+from models.data_models import FileMode, MovieData
 from models.signals import signal
 
 
 def get_output_name(
-    json_data: PathInfo, file_path: str, success_folder: str, file_ex: str
+    file_info: FileInfo,
+    movie_data: MovieData,
+    file_path: str,
+    success_folder: str,
+    file_ex: str,
 ) -> tuple[str, str, str, str, str, str, str, str, str, str]:
     # =====================================================================================更新输出文件夹名
-    folder_new_path = _get_folder_path(file_path, success_folder, json_data)
+    folder_new_path = _get_folder_path(file_path, success_folder, file_info, movie_data)
     folder_new_path = _deal_path_name(folder_new_path)
     # =====================================================================================更新实体文件命名规则
-    naming_rule = _generate_file_name(file_path, json_data)
+    naming_rule = _generate_file_name(file_path, file_info, movie_data)
     naming_rule = _deal_path_name(naming_rule)
     # =====================================================================================生成文件和nfo新路径
     file_new_name = naming_rule + file_ex.lower()
@@ -78,7 +81,7 @@ def get_output_name(
     )
 
 
-def _get_folder_path(file_path: str, success_folder: str, json_data: PathInfo) -> str:
+def _get_folder_path(file_path: str, success_folder: str, file_info: FileInfo, movie_data: MovieData) -> str:
     folder_name = config.folder_name.replace("\\", "/")  # 设置-命名-视频目录名
     folder_path, file_name = split_path(file_path)  # 当前文件的目录和文件名
     filename = os.path.splitext(file_name)[0]
@@ -110,27 +113,27 @@ def _get_folder_path(file_path: str, success_folder: str, json_data: PathInfo) -
         return success_folder
 
     # 获取文件信息
-    destroyed = json_data["destroyed"]
-    leak = json_data["leak"]
-    wuma = json_data["wuma"]
-    youma = json_data["youma"]
+    destroyed = file_info.destroyed
+    leak = file_info.leak
+    wuma = file_info.wuma
+    youma = file_info.youma
     m_word = destroyed + leak + wuma + youma
-    c_word = json_data["c_word"]
-    title = json_data["title"]
-    originaltitle = json_data["originaltitle"]
-    studio = json_data["studio"]
-    publisher = json_data["publisher"]
-    year = json_data["year"]
-    outline = json_data["outline"]
-    runtime = json_data["runtime"]
-    director = json_data["director"]
-    actor = json_data["actor"]
-    release = json_data["release"]
-    number = json_data["number"]
-    series = json_data["series"]
-    mosaic = json_data["mosaic"]
-    definition = json_data["definition"]
-    letters = json_data["letters"]
+    c_word = file_info.c_word
+    title = file_info.title
+    originaltitle = movie_data.originaltitle
+    studio = movie_data.studio
+    publisher = movie_data.publisher
+    year = movie_data.year
+    outline = movie_data.outline
+    runtime = movie_data.runtime
+    director = movie_data.director
+    actor = movie_data.actor
+    release = movie_data.release
+    number = file_info.number
+    series = movie_data.series
+    mosaic = file_info.mosaic
+    definition = file_info.definition
+    letters = file_info.letters
 
     # 国产使用title作为number会出现重复，此处去除title，避免重复(需要注意titile繁体情况)
     if not number:
@@ -146,7 +149,7 @@ def _get_folder_path(file_path: str, success_folder: str, json_data: PathInfo) -
     # 是否勾选目录名添加4k标识
     temp_4k = ""
     if "folder" in config.show_4k:
-        definition = json_data["definition"]
+        definition = file_info.definition
         if definition == "8K" or definition == "UHD8" or definition == "4K" or definition == "UHD":
             temp_definition = definition.replace("UHD8", "UHD")
             temp_4k = f"-{temp_definition}"
@@ -170,7 +173,7 @@ def _get_folder_path(file_path: str, success_folder: str, json_data: PathInfo) -
     first_letter = get_number_first_letter(number)
 
     # 特殊情况处理
-    score = str(json_data["score"])
+    score = str(movie_data.score)
     if not series:
         series = "未知系列"
     if not actor:
@@ -183,7 +186,7 @@ def _get_folder_path(file_path: str, success_folder: str, json_data: PathInfo) -
 
     # 获取演员
     first_actor = actor.split(",").pop(0)
-    all_actor = deal_actor_more(json_data["all_actor"])
+    all_actor = deal_actor_more(file_info.all_actor)
     actor = deal_actor_more(actor)
 
     # 替换字段里的文件夹分隔符
@@ -220,7 +223,7 @@ def _get_folder_path(file_path: str, success_folder: str, json_data: PathInfo) -
         ["first_letter", first_letter],
         ["letters", letters],
         ["filename", filename],
-        ["wanted", str(json_data["wanted"])],
+        ["wanted", str(movie_data.wanted)],
         ["score", str(score)],
     ]
     folder_new_name = folder_name
@@ -273,7 +276,7 @@ def _get_folder_path(file_path: str, success_folder: str, json_data: PathInfo) -
     return folder_new_path.strip().replace(" /", "/")
 
 
-def _generate_file_name(file_path: str, json_data: PathInfo) -> str:
+def _generate_file_name(file_path: str, file_info: FileInfo, movie_data: MovieData) -> str:
     file_full_name = split_path(file_path)[1]
     file_name, file_ex = os.path.splitext(file_full_name)
     filename = file_name
@@ -283,28 +286,28 @@ def _generate_file_name(file_path: str, json_data: PathInfo) -> str:
         return file_name
 
     # 获取文件信息
-    cd_part = json_data["cd_part"]
-    destroyed = json_data["destroyed"]
-    leak = json_data["leak"]
-    wuma = json_data["wuma"]
-    youma = json_data["youma"]
+    cd_part = file_info.cd_part
+    destroyed = file_info.destroyed
+    leak = file_info.leak
+    wuma = file_info.wuma
+    youma = file_info.youma
     m_word = destroyed + leak + wuma + youma
-    c_word = json_data["c_word"]
-    title = json_data["title"]
-    originaltitle = json_data["originaltitle"]
-    studio = json_data["studio"]
-    publisher = json_data["publisher"]
-    year = json_data["year"]
-    outline = json_data["outline"]
-    runtime = json_data["runtime"]
-    director = json_data["director"]
-    actor = json_data["actor"]
-    release = json_data["release"]
-    number = json_data["number"]
-    series = json_data["series"]
-    mosaic = json_data["mosaic"]
-    definition = json_data["definition"]
-    letters = json_data["letters"]
+    c_word = file_info.c_word
+    title = file_info.title
+    originaltitle = movie_data.originaltitle
+    studio = movie_data.studio
+    publisher = movie_data.publisher
+    year = movie_data.year
+    outline = movie_data.outline
+    runtime = movie_data.runtime
+    director = movie_data.director
+    actor = movie_data.actor
+    release = movie_data.release
+    number = file_info.number
+    series = movie_data.series
+    mosaic = file_info.mosaic
+    definition = file_info.definition
+    letters = file_info.letters
 
     # 国产使用title作为number会出现重复，此处去除title，避免重复(需要注意titile繁体情况)
     naming_file = config.naming_file
@@ -317,7 +320,7 @@ def _generate_file_name(file_path: str, json_data: PathInfo) -> str:
     # 是否勾选文件名添加4k标识
     temp_4k = ""
     if "file" in config.show_4k:
-        definition = json_data["definition"]
+        definition = file_info.definition
         if definition == "8K" or definition == "UHD8" or definition == "4K" or definition == "UHD":
             temp_definition = definition.replace("UHD8", "UHD")
             temp_4k = f"-{temp_definition}"
@@ -346,7 +349,7 @@ def _generate_file_name(file_path: str, json_data: PathInfo) -> str:
     first_letter = get_number_first_letter(number)
 
     # 处理异常情况
-    score = json_data["score"]
+    score = movie_data.score
     if not series:
         series = "未知系列"
     if not actor:
@@ -359,7 +362,7 @@ def _generate_file_name(file_path: str, json_data: PathInfo) -> str:
 
     # 获取演员
     first_actor = actor.split(",").pop(0)
-    all_actor = deal_actor_more(json_data["all_actor"])
+    all_actor = deal_actor_more(file_info.all_actor)
     actor = deal_actor_more(actor)
 
     # 替换字段里的文件夹分隔符
@@ -396,7 +399,7 @@ def _generate_file_name(file_path: str, json_data: PathInfo) -> str:
         ["first_letter", first_letter],
         ["letters", letters],
         ["filename", filename],
-        ["wanted", str(json_data["wanted"])],
+        ["wanted", str(movie_data.wanted)],
         ["score", str(score)],
     ]
     for each_key in repl_list:
@@ -463,10 +466,9 @@ def _generate_file_name(file_path: str, json_data: PathInfo) -> str:
 # 以下仅需要 FileInfo
 
 
+# 此函数是原 JsonData 的构造位置, 需拆分
 def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str, str, str, str, list[str], str, str]:
-    json_data = new_json_data()
-    json_data = cast(FileInfo, json_data)
-    json_data["version"] = config.version
+    file_info = FileInfo()  # 使用 dataclass 创建实例而不是字典
     movie_number = ""
     has_sub = False
     c_word = ""
@@ -482,12 +484,12 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
         temp_number, temp_url, temp_website = Flags.new_again_dic[file_path]
         if temp_number:  # 如果指定了番号，则使用指定番号
             movie_number = temp_number
-            json_data["appoint_number"] = temp_number
+            file_info.appoint_number = temp_number
         if temp_url:
-            json_data["appoint_url"] = temp_url
-            json_data["website_name"] = temp_website
+            file_info.appoint_url = temp_url
+            file_info.website_name = temp_website
     elif Flags.file_mode == FileMode.Single:  # 刮削单文件（工具页面）
-        json_data["appoint_url"] = Flags.appoint_url
+        file_info.appoint_url = Flags.appoint_url
 
     # 获取显示路径
     file_path = file_path.replace("\\", "/")
@@ -520,7 +522,7 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
 
         # 259LUXU-1111, 非mgstage、avsex去除前面的数字前缀
         temp_n = re.findall(r"\d{3,}([a-zA-Z]+-\d+)", movie_number)
-        json_data["short_number"] = temp_n[0] if temp_n else ""
+        file_info.short_number = temp_n[0] if temp_n else ""
 
         # 去掉各种乱七八糟的字符
         file_name_cd = remove_escape_string(file_name, "-").replace(movie_number, "-").replace("--", "-").strip()
@@ -543,6 +545,7 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
         # if 'C.' in config.cnword_char and file_name_cd.endswith('c.'):
         #     file_name_cd = file_name_cd[:-2] + '.'
 
+        temp_cd = re.compile(r"(vol|case|no|cwp|cwpbd|act)[-\.]?\d+")
         temp_cd = re.compile(r"(vol|case|no|cwp|cwpbd|act)[-\.]?\d+")
         temp_cd_filename = re.sub(temp_cd, "", file_name_cd)
         cd_path_1 = re.findall(r"[-_ .]{1}(cd|part|hd)([0-9]{1,2})", temp_cd_filename)
@@ -799,24 +802,19 @@ def get_file_info(file_path: str, copy_sub: bool = True) -> tuple[FileInfo, str,
     # 车牌前缀
     letters = get_number_letters(movie_number)
 
-    json_data["number"] = movie_number
-    json_data["letters"] = letters
-    json_data["has_sub"] = has_sub
-    json_data["c_word"] = c_word
-    json_data["cd_part"] = cd_part
-    json_data["destroyed"] = destroyed
-    json_data["leak"] = leak
-    json_data["wuma"] = wuma
-    json_data["youma"] = youma
-    json_data["mosaic"] = mosaic
-    json_data["_4K"] = ""
-    json_data["tag"] = ""
-    json_data["actor_href"] = ""
-    json_data["all_actor"] = ""
-    json_data["definition"] = ""
-    json_data["file_path"] = convert_path(file_path)
+    file_info.number = movie_number
+    file_info.letters = letters
+    file_info.has_sub = has_sub
+    file_info.c_word = c_word
+    file_info.cd_part = cd_part
+    file_info.destroyed = destroyed
+    file_info.leak = leak
+    file_info.wuma = wuma
+    file_info.youma = youma
+    file_info.mosaic = mosaic
+    file_info.file_path = convert_path(file_path)
 
-    return json_data, movie_number, folder_path, file_name, file_ex, sub_list, file_show_name, file_show_path
+    return file_info, movie_number, folder_path, file_name, file_ex, sub_list, file_show_name, file_show_path
 
 
 def move_file_to_failed_folder(
@@ -855,7 +853,7 @@ def move_file_to_failed_folder(
         move_file(file_path, file_new_path)
         LogBuffer.log().write("\n 🔴 Move file to the failed folder!")
         LogBuffer.log().write(f"\n 🙊 [Movie] {file_new_path}")
-        file_info["file_path"] = file_new_path
+        file_info.file_path = file_new_path
         error_info = LogBuffer.error().get()
         LogBuffer.error().clear()
         LogBuffer.error().write(error_info.replace(file_path, file_new_path))
@@ -907,8 +905,8 @@ def creat_folder(
 ) -> bool:
     """判断是否创建文件夹，目标文件是否有重复文件。file_new_path是最终路径"""
 
-    file_info["dont_move_movie"] = False  # 不需要移动和重命名视频
-    file_info["del_file_path"] = False  # 在 move movie 时需要删除自己，自己是软链接，目标是原始文件
+    file_info.dont_move_movie = False  # 不需要移动和重命名视频
+    file_info.del_file_path = False  # 在 move movie 时需要删除自己，自己是软链接，目标是原始文件
     dont_creat_folder = False  # 不需要创建文件夹
 
     # 正常模式、视频模式时，软连接关，成功后不移动文件开时，这时不创建文件夹
@@ -922,7 +920,7 @@ def creat_folder(
     # 如果不需要创建文件夹，当不重命名时，直接返回
     if dont_creat_folder:
         if config.success_file_rename == 0:
-            file_info["dont_move_movie"] = True
+            file_info.dont_move_movie = True
             return True
 
     # 如果不存在目标文件夹，则创建文件夹
@@ -950,7 +948,7 @@ def creat_folder(
     if os.path.islink(file_new_path):
         # 路径相同，是自己
         if convert_file_path == convert_file_new_path:
-            file_info["dont_move_movie"] = True
+            file_info.dont_move_movie = True
         # 路径不同，删掉目标文件即可（不验证是否真实路径了，太麻烦）
         else:
             # 在移动时删除即可。delete_file(file_new_path)
@@ -964,11 +962,11 @@ def creat_folder(
         if not os.path.islink(file_path):
             # 如果路径相同，则代表已经在成功文件夹里，不是重复文件（大小写不敏感）
             if convert_file_path == convert_file_new_path:
-                file_info["dont_move_movie"] = True
+                file_info.dont_move_movie = True
                 if os.path.exists(thumb_new_path_with_filename):
-                    file_info["thumb_path"] = thumb_new_path_with_filename
+                    file_info.thumb_path = thumb_new_path_with_filename
                 if os.path.exists(poster_new_path_with_filename):
-                    file_info["poster_path"] = poster_new_path_with_filename
+                    file_info.poster_path = poster_new_path_with_filename
                 return True
 
             # 路径不同
@@ -978,7 +976,7 @@ def creat_folder(
                     if os.stat(file_path).st_ino == os.stat(file_new_path).st_ino:
                         # 硬链接开时，不需要处理
                         if config.soft_link == 2:
-                            file_info["dont_move_movie"] = True
+                            file_info.dont_move_movie = True
                         # 非硬链接模式，删除目标文件
                         else:
                             # 在移动时删除即可。delete_file(file_new_path)
@@ -988,7 +986,7 @@ def creat_folder(
                     pass
 
                 # 路径不同，当指向不同文件时
-                file_info["title"] = "Success folder already exists a same name file!"
+                file_info.title = "Success folder already exists a same name file!"
                 LogBuffer.error().write(
                     f"Success folder already exists a same name file! \n ❗️ Current file: {file_path} \n ❗️ Success folder already exists file: {file_new_path} "
                 )
@@ -1001,14 +999,14 @@ def creat_folder(
             if convert_path(real_file_path).lower() == convert_file_new_path:
                 # 非软硬链接时，标记删除待刮削文件自身
                 if config.soft_link == 0:
-                    file_info["del_file_path"] = True
+                    file_info.del_file_path = True
                 # 软硬链接时，标记不处理
                 else:
-                    file_info["dont_move_movie"] = True
+                    file_info.dont_move_movie = True
                 return True
             # 路径不同，是两个文件
             else:
-                file_info["title"] = "Success folder already exists a same name file!"
+                file_info.title = "Success folder already exists a same name file!"
                 LogBuffer.error().write(
                     f"Success folder already exists a same name file! \n"
                     f" ❗️ Current file is symlink file: {file_path} \n"
@@ -1137,9 +1135,9 @@ def deal_old_files(
     """
 
     # poster_marked True 不加水印，避免二次加水印,；poster_exists 是不是存在本地图片
-    file_info["poster_marked"] = True
-    file_info["thumb_marked"] = True
-    file_info["fanart_marked"] = True
+    file_info.poster_marked = True
+    file_info.thumb_marked = True
+    file_info.fanart_marked = True
     poster_exists = True
     thumb_exists = True
     fanart_exists = True
@@ -1160,7 +1158,7 @@ def deal_old_files(
     """
 
     # poster 处理：寻找对应文件放到最终路径上。这样避免刮削失败时，旧的图片被删除
-    done_poster_path = Flags.file_done_dic.get(file_info["number"], {}).get("poster")
+    done_poster_path = Flags.file_done_dic.get(file_info.number, {}).get("poster")
     done_poster_path_copy = True
     try:
         # 图片最终路径等于已下载路径时，图片是已下载的，不需要处理
@@ -1182,7 +1180,7 @@ def deal_old_files(
             poster_exists = False
 
         if poster_exists:
-            Flags.file_done_dic[file_info["number"]].update({"local_poster": poster_final_path})
+            Flags.file_done_dic[file_info.number].update({"local_poster": poster_final_path})
             # 清理旧图片
             if poster_old_path_with_filename.lower() != poster_final_path.lower() and os.path.exists(
                 poster_old_path_with_filename
@@ -1196,14 +1194,14 @@ def deal_old_files(
                 poster_new_path_with_filename
             ):
                 delete_file(poster_new_path_with_filename)
-        elif Flags.file_done_dic[file_info["number"]]["local_poster"]:
-            copy_file(Flags.file_done_dic[file_info["number"]]["local_poster"], poster_final_path)
+        elif Flags.file_done_dic[file_info.number]["local_poster"]:
+            copy_file(Flags.file_done_dic[file_info.number]["local_poster"], poster_final_path)
 
     except:
         signal.show_log_text(traceback.format_exc())
 
     # thumb 处理：寻找对应文件放到最终路径上。这样避免刮削失败时，旧的图片被删除
-    done_thumb_path = Flags.file_done_dic.get(file_info["number"], {}).get("thumb")
+    done_thumb_path = Flags.file_done_dic.get(file_info.number, {}).get("thumb")
     done_thumb_path_copy = True
     try:
         # 图片最终路径等于已下载路径时，图片是已下载的，不需要处理
@@ -1225,7 +1223,7 @@ def deal_old_files(
             thumb_exists = False
 
         if thumb_exists:
-            Flags.file_done_dic[file_info["number"]].update({"local_thumb": thumb_final_path})
+            Flags.file_done_dic[file_info.number].update({"local_thumb": thumb_final_path})
             # 清理旧图片
             if thumb_old_path_with_filename.lower() != thumb_final_path.lower() and os.path.exists(
                 thumb_old_path_with_filename
@@ -1239,14 +1237,14 @@ def deal_old_files(
                 thumb_new_path_with_filename
             ):
                 delete_file(thumb_new_path_with_filename)
-        elif Flags.file_done_dic[file_info["number"]]["local_thumb"]:
-            copy_file(Flags.file_done_dic[file_info["number"]]["local_thumb"], thumb_final_path)
+        elif Flags.file_done_dic[file_info.number]["local_thumb"]:
+            copy_file(Flags.file_done_dic[file_info.number]["local_thumb"], thumb_final_path)
 
     except:
         signal.show_log_text(traceback.format_exc())
 
     # fanart 处理：寻找对应文件放到最终路径上。这样避免刮削失败时，旧的图片被删除
-    done_fanart_path = Flags.file_done_dic.get(file_info["number"], {}).get("fanart")
+    done_fanart_path = Flags.file_done_dic.get(file_info.number, {}).get("fanart")
     done_fanart_path_copy = True
     try:
         # 图片最终路径等于已下载路径时，图片是已下载的，不需要处理
@@ -1268,7 +1266,7 @@ def deal_old_files(
             fanart_exists = False
 
         if fanart_exists:
-            Flags.file_done_dic[file_info["number"]].update({"local_fanart": fanart_final_path})
+            Flags.file_done_dic[file_info.number].update({"local_fanart": fanart_final_path})
             # 清理旧图片
             if fanart_old_path_with_filename.lower() != fanart_final_path.lower() and os.path.exists(
                 fanart_old_path_with_filename
@@ -1282,16 +1280,16 @@ def deal_old_files(
                 fanart_new_path_with_filename
             ):
                 delete_file(fanart_new_path_with_filename)
-        elif Flags.file_done_dic[file_info["number"]]["local_fanart"]:
-            copy_file(Flags.file_done_dic[file_info["number"]]["local_fanart"], fanart_final_path)
+        elif Flags.file_done_dic[file_info.number]["local_fanart"]:
+            copy_file(Flags.file_done_dic[file_info.number]["local_fanart"], fanart_final_path)
 
     except:
         signal.show_log_text(traceback.format_exc())
 
     # 更新图片地址
-    file_info["poster_path"] = poster_final_path if poster_exists and done_poster_path_copy else ""
-    file_info["thumb_path"] = thumb_final_path if thumb_exists and done_thumb_path_copy else ""
-    file_info["fanart_path"] = fanart_final_path if fanart_exists and done_fanart_path_copy else ""
+    file_info.poster_path = poster_final_path if poster_exists and done_poster_path_copy else ""
+    file_info.thumb_path = thumb_final_path if thumb_exists and done_thumb_path_copy else ""
+    file_info.fanart_path = fanart_final_path if fanart_exists and done_fanart_path_copy else ""
 
     # nfo 处理
     try:
@@ -1353,7 +1351,7 @@ def deal_old_files(
             trailer_exists = False
 
         if trailer_exists:
-            Flags.file_done_dic[file_info["number"]].update({"local_trailer": trailer_new_file_path_with_filename})
+            Flags.file_done_dic[file_info.number].update({"local_trailer": trailer_new_file_path_with_filename})
             # 删除旧、新文件夹，用不到了(分集使用local trailer复制即可)
             if os.path.exists(trailer_old_folder_path):
                 shutil.rmtree(trailer_old_folder_path, ignore_errors=True)
@@ -1365,7 +1363,7 @@ def deal_old_files(
             ):
                 delete_file(trailer_old_file_path_with_filename)
         else:
-            local_trailer = Flags.file_done_dic.get(file_info["number"], {}).get("local_trailer")
+            local_trailer = Flags.file_done_dic.get(file_info.number, {}).get("local_trailer")
             if local_trailer and os.path.exists(local_trailer):
                 copy_file(local_trailer, trailer_new_file_path_with_filename)
 
@@ -1416,15 +1414,15 @@ def deal_old_files(
 
 def move_movie(file_info: FileInfo, file_path: str, file_new_path: str) -> bool:
     # 明确不需要移动的，直接返回
-    if file_info["dont_move_movie"]:
+    if file_info.dont_move_movie:
         LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_path}")
         return True
 
     # 明确要删除自己的，删除后返回
-    if file_info["del_file_path"]:
+    if file_info.del_file_path:
         delete_file(file_path)
         LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_new_path}")
-        file_info["file_path"] = file_new_path
+        file_info.file_path = file_new_path
         return True
 
     # 软链接模式开时，先删除目标文件，再创建软链接(需考虑自身是软链接的情况)
@@ -1437,7 +1435,7 @@ def move_movie(file_info: FileInfo, file_path: str, file_new_path: str) -> bool:
         delete_file(file_new_path)
         try:
             os.symlink(file_path, file_new_path)
-            file_info["file_path"] = file_new_path
+            file_info.file_path = file_new_path
             LogBuffer.log().write(
                 f"\n 🍀 Softlink done! \n    Softlink file: {file_new_path} \n    Source file: {file_path}"
             )
@@ -1460,7 +1458,7 @@ def move_movie(file_info: FileInfo, file_path: str, file_new_path: str) -> bool:
         try:
             delete_file(file_new_path)
             os.link(file_path, file_new_path)
-            file_info["file_path"] = file_new_path
+            file_info.file_path = file_new_path
             LogBuffer.log().write(
                 f"\n 🍀 HardLink done! \n    HadrLink file: {file_new_path} \n    Source file: {file_path}"
             )
@@ -1492,17 +1490,17 @@ def move_movie(file_info: FileInfo, file_path: str, file_new_path: str) -> bool:
             LogBuffer.log().write(
                 f"\n    It's a symlink file! Source file: \n    {read_link(file_new_path)}"  # win 不能用os.path.realpath()，返回的结果不准
             )
-        file_info["file_path"] = file_new_path
+        file_info.file_path = file_new_path
         return True
     else:
         if "are the same file" in error_info.lower():  # 大小写不同，win10 用raidrive 挂载 google drive 改名会出错
-            if file_info["cd_part"]:
+            if file_info.cd_part:
                 temp_folder, temp_file = split_path(file_new_path)
                 if temp_file not in os.listdir(temp_folder):
                     move_file(file_path, file_new_path + ".MDCx.tmp")
                     move_file(file_new_path + ".MDCx.tmp", file_new_path)
             LogBuffer.log().write(f"\n 🍀 Movie done! \n 🙉 [Movie] {file_new_path}")
-            file_info["file_path"] = file_new_path
+            file_info.file_path = file_new_path
             return True
         LogBuffer.log().write(f"\n 🔴 Failed to move movie file to success folder!\n    {error_info}")
         return False

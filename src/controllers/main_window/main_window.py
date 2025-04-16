@@ -5,6 +5,7 @@ import threading
 import time
 import traceback
 import webbrowser
+from typing import Optional
 
 from PyQt5.QtCore import QEvent, QPoint, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QCursor, QHoverEvent, QIcon, QKeySequence
@@ -880,118 +881,84 @@ class MyMAinWindow(QMainWindow):
         signal.add_label_info(json_data)
         self.json_array[filename] = json_data
 
-    def add_label_info_Thread(self, show_data: ShowData):
+    def add_label_info_Thread(self, show_data: Optional[ShowData]):
         try:
             if not show_data:
-                show_data = {
-                    "number": "",
-                    "actor": "",
-                    "all_actor": "",
-                    "source": "",
-                    "website": "",
-                    "title": "",
-                    "outline": "",
-                    "tag": "",
-                    "release": "",
-                    "year": "",
-                    "runtime": "",
-                    "director": "",
-                    "series": "",
-                    "studio": "",
-                    "publisher": "",
-                    "poster_path": "",
-                    "thumb_path": "",
-                    "fanart_path": "",
-                    "has_sub": False,
-                    "c_word": "",
-                    "leak": "",
-                    "cd_part": "",
-                    "mosaic": "",
-                    "destroyed": "",
-                    "actor_href": "",
-                    "definition": "",
-                    "cover_from": "",
-                    "poster_from": "",
-                    "extrafanart_from": "",
-                    "trailer_from": "",
-                    "file_path": "",
-                    "show_name": "",
-                    "country": "",
-                }
-            number = str(show_data["number"])
+                show_data = ShowData()
+            number = str(show_data.number)
             self.Ui.label_number.setToolTip(number)
             if len(number) > 11:
                 number = number[:10] + "……"
             self.Ui.label_number.setText(number)
-            self.label_number_url = show_data["website"]
-            actor = str(show_data["actor"])
-            if show_data["all_actor"] and "actor_all," in config.nfo_include_new:
-                actor = str(show_data["all_actor"])
+            self.label_number_url = show_data.website
+            actor = str(show_data.actor)
+            if show_data.all_actor and "actor_all," in config.nfo_include_new:
+                actor = str(show_data.all_actor)
             self.Ui.label_actor.setToolTip(actor)
             if number and not actor:
                 actor = config.actor_no_name
             if len(actor) > 10:
                 actor = actor[:9] + "……"
             self.Ui.label_actor.setText(actor)
-            self.label_actor_url = show_data["actor_href"]
-            self.file_main_open_path = show_data["file_path"]  # 文件路径
-            self.show_name = show_data["show_name"]
-            if show_data.get("source"):
-                self.Ui.label_source.setText("数据：" + show_data["source"].replace(".main", ""))
+            self.label_actor_url = show_data.actor_href
+            self.file_main_open_path = show_data.file_path  # 文件路径
+            self.show_name = show_data.show_name
+            if show_data.source:
+                self.Ui.label_source.setText("数据：" + show_data.source.replace(".main", ""))
             else:
                 self.Ui.label_source.setText("")
-            self.Ui.label_source.setToolTip(show_data["website"])
-            title = show_data["title"].split("\n")[0].strip(" :")
+            self.Ui.label_source.setToolTip(show_data.website)
+            title = show_data.title.split("\n")[0].strip(" :")
             self.Ui.label_title.setToolTip(title)
             if len(title) > 27:
                 title = title[:25] + "……"
             self.Ui.label_title.setText(title)
-            outline = str(show_data["outline"])
+            outline = str(show_data.outline)
             self.Ui.label_outline.setToolTip(outline)
             if len(outline) > 38:
                 outline = outline[:36] + "……"
             self.Ui.label_outline.setText(outline)
-            tag = str(show_data["tag"]).strip(" [',']").replace("'", "")
+            tag = str(show_data.tag).strip(" [',']").replace("'", "")
             self.Ui.label_tag.setToolTip(tag)
             if len(tag) > 76:
                 tag = tag[:75] + "……"
             self.Ui.label_tag.setText(tag)
-            self.Ui.label_release.setText(str(show_data["release"]))
-            self.Ui.label_release.setToolTip(str(show_data["release"]))
-            if show_data["runtime"]:
-                self.Ui.label_runtime.setText(str(show_data["runtime"]) + " 分钟")
-                self.Ui.label_runtime.setToolTip(str(show_data["runtime"]) + " 分钟")
+            self.Ui.label_release.setText(str(show_data.release))
+            self.Ui.label_release.setToolTip(str(show_data.release))
+            if show_data.runtime:
+                self.Ui.label_runtime.setText(str(show_data.runtime) + " 分钟")
+                self.Ui.label_runtime.setToolTip(str(show_data.runtime) + " 分钟")
             else:
                 self.Ui.label_runtime.setText("")
-            self.Ui.label_director.setText(str(show_data["director"]))
-            self.Ui.label_director.setToolTip(str(show_data["director"]))
-            series = str(show_data["series"])
+            self.Ui.label_director.setText(str(show_data.director))
+            self.Ui.label_director.setToolTip(str(show_data.director))
+            series = str(show_data.series)
             self.Ui.label_series.setToolTip(series)
             if len(series) > 32:
                 series = series[:31] + "……"
             self.Ui.label_series.setText(series)
-            self.Ui.label_studio.setText(str(show_data["studio"]))
-            self.Ui.label_studio.setToolTip(str(show_data["studio"]))
-            self.Ui.label_publish.setText(str(show_data["publisher"]))
-            self.Ui.label_publish.setToolTip(str(show_data["publisher"]))
+            self.Ui.label_studio.setText(str(show_data.studio))
+            self.Ui.label_studio.setToolTip(str(show_data.studio))
+            self.Ui.label_publish.setText(str(show_data.publisher))
+            self.Ui.label_publish.setToolTip(str(show_data.publisher))
             self.Ui.label_poster.setToolTip("点击裁剪图片")
             self.Ui.label_thumb.setToolTip("点击裁剪图片")
-            if os.path.isfile(show_data["fanart_path"]):  # 生成img_path，用来裁剪使用
-                show_data["img_path"] = show_data["fanart_path"]
+            if os.path.isfile(show_data.fanart_path):  # 生成img_path，用来裁剪使用
+                show_data.img_path = show_data.fanart_path
             else:
-                show_data["img_path"] = show_data["thumb_path"]
+                show_data.img_path = show_data.thumb_path
             self.json_data = show_data
-            self.img_path = show_data["img_path"]
+            self.img_path = show_data.img_path
             if self.Ui.checkBox_cover.isChecked():  # 主界面显示封面和缩略图
-                poster_path = show_data["poster_path"]
-                thumb_path = show_data["thumb_path"]
-                fanart_path = show_data["fanart_path"]
+                poster_path = show_data.poster_path
+                thumb_path = show_data.thumb_path
+                fanart_path = show_data.fanart_path
                 if not os.path.exists(thumb_path):
                     if os.path.exists(fanart_path):
                         thumb_path = fanart_path
 
-                poster_from = show_data["poster_from"]
-                cover_from = show_data["cover_from"]
+                poster_from = show_data.poster_from
+                cover_from = show_data.cover_from
 
                 self.set_pixmap_thread(poster_path, thumb_path, poster_from, cover_from)
         except:

@@ -163,74 +163,76 @@ class TranslateData(TypedDict):  # 17
 
 
 # 主界面展示使用的字段
-class ShowData(TypedDict):  # 34
-    # file_path: str  # #meta
-    # number: str  # #movie
-    # actor: str  # #movie
-    # all_actor: str  # #movie
-    # source: str  # #movie
-    # website: str  # #movie
-    # title: str  # #movie
-    # outline: str  # #movie
-    # tag: str  # #movie
-    # release: str  # #movie
-    # year: str  # #movie
-    # runtime: str  # #movie
-    # director: str  # #movie
-    # series: str  # #movie
-    # studio: str  # #movie
-    # publisher: str  # #movie
-    poster_path: str
-    thumb_path: str
-    fanart_path: str
-    # has_sub: bool  # #meta
-    # c_word: str  # #meta
-    # leak: str  # #meta
-    # cd_part: str  # #meta
-    # mosaic: str  # #movie
-    # destroyed: str  # #meta
-    actor_href: str
-    definition: str
-    # cover_from: str  # #meta
-    # poster_from: str  # #meta
-    # extrafanart_from: str  # #meta
-    # trailer_from: str  # #meta
-    show_name: str
-    img_path: str
-    # country: str  # #movie
+@dataclass
+class ShowData:
+    file_path: str = ""  # #meta
+    number: str = ""  # #movie
+    actor: str = ""  # #movie
+    all_actor: str = ""  # #movie
+    source: str = ""  # #movie
+    website: str = ""  # #movie
+    title: str = ""  # #movie
+    outline: str = ""  # #movie
+    tag: str = ""  # #movie
+    release: str = ""  # #movie
+    year: str = ""  # #movie
+    runtime: str = ""  # #movie
+    director: str = ""  # #movie
+    series: str = ""  # #movie
+    studio: str = ""  # #movie
+    publisher: str = ""  # #movie
+    poster_path: str = ""
+    thumb_path: str = ""
+    fanart_path: str = ""
+    has_sub: bool = False  # #meta
+    c_word: str = ""  # #meta
+    leak: str = ""  # #meta
+    cd_part: str = ""  # #meta
+    mosaic: str = ""  # #movie
+    destroyed: str = ""  # #meta
+    actor_href: str = ""
+    definition: str = ""
+    cover_from: str = ""  # #meta
+    poster_from: str = ""  # #meta
+    extrafanart_from: str = ""  # #meta
+    trailer_from: str = ""  # #meta
+    show_name: str = ""
+    img_path: str = ""
+    country: str = ""  # #movie
 
 
-class FileInfo(TypedDict):  # 30
-    # version: int  # #meta
-    # number: str  # #movie
-    # letters: str  # #meta
-    # has_sub: bool  # #meta
-    # c_word: str  # #meta
-    # cd_part: str  # #meta
-    # destroyed: str  # #meta
-    # leak: str  # #meta
-    # wuma: str  # #meta
-    # youma: str  # #meta
-    # mosaic: str  # #movie
-    _4K: str
-    # tag: str  # #movie
-    actor_href: str
-    # all_actor: str  # #movie
-    definition: str
-    # file_path: str  # #meta
-    # appoint_number: str  # #meta
-    # appoint_url: str  # #meta
-    # website_name: str  # #meta
-    # short_number: str  # #meta
-    poster_marked: bool
-    thumb_marked: bool
-    fanart_marked: bool
-    poster_path: str
-    thumb_path: str
-    fanart_path: str
-    # title: str  # #movie
-    dont_move_movie: bool
-    del_file_path: bool
+@dataclass
+class FileInfo:
+    number: str = ""  # #movie
+    letters: str = ""  # #meta
+    has_sub: bool = False  # #meta
+    c_word: str = ""  # #meta
+    cd_part: str = ""  # #meta
+    destroyed: str = ""  # #meta
+    leak: str = ""  # #meta
+    wuma: str = ""  # #meta
+    youma: str = ""  # #meta
+    mosaic: str = ""  # #movie
+    tag: str = ""  # #movie
+    all_actor: str = ""  # #movie
+    file_path: str = ""  # #meta
+    appoint_number: str = ""  # #meta
+    appoint_url: str = ""  # #meta
+    website_name: str = ""  # #meta
+    short_number: str = ""  # #meta
+    title: str = ""  # #movie
+    _4K: str = ""
+    actor_href: str = ""
+    definition: str = ""
+    version: int = 0  # #meta
+    poster_marked: bool = True
+    thumb_marked: bool = True
+    fanart_marked: bool = True
+    poster_path: str = ""
+    thumb_path: str = ""
+    fanart_path: str = ""
+    dont_move_movie: bool = False
+    del_file_path: bool = False
 
 
 # get_output_name/_get_folder_path/_generate_file_name 使用的字段
@@ -286,14 +288,14 @@ class InputInfo(TypedDict):
     all_actor_photo: dict  # #movie
 
 
-class JsonData(ImageData, TranslateData, ShowData, FileInfo, PathInfo, InputInfo):  # 71
+class JsonData(ImageData, TranslateData, PathInfo, InputInfo):  # 71
     pass
 
 
 # fmt: off
 def new_json_data() -> JsonData:
     return {
-        "_4K": "",                              # FileInfo
+        # "_4K": "",                              # FileInfo
         "actor_amazon": [],                     # ImageData, NFOData
         "actor_href": "",                       # FileInfo, ShowData, TranslateData
         "all_actor_photo": {},                  # Other
@@ -304,14 +306,14 @@ def new_json_data() -> JsonData:
         "cd_part": "",                          # ImageData, NFOData, PathInfo, FileInfo, TranslateData, ShowData
         "cover_size": (0, 0),                   # ImageData
         "definition": "",                       # NFOData, PathInfo, ShowData
-        "del_file_path": False,                 # FileInfo
+        # "del_file_path": False,                 # FileInfo
         "destroyed": "",                        # FileInfo, PathInfo, ShowData
-        "dont_move_movie": False,               # FileInfo
+        # "dont_move_movie": False,               # FileInfo
         "fanart_marked": True,                  # FileInfo, ImageData
         "fanart_path": "",                      # FileInfo, ImageData, NFOData, ShowData
         "file_path": "",                        # FileInfo, ShowData, TranslateData
         "has_sub": False,                       # FileInfo, TranslateData, ShowData
-        "img_path": "",                         # ShowData
+        # "img_path": "",                         # ShowData
         # "javdbid": "",                          # NFOData
         "leak": "",                             # FileInfo, PathInfo, ShowData
         "mosaic": "",                           # ImageData, NFOData, PathInfo, FileInfo, TranslateData, ShowData
@@ -324,7 +326,7 @@ def new_json_data() -> JsonData:
         "poster_size": (0, 0),                  # ImageData
         "release": "",                          # NFOData, PathInfo, ShowData
         "short_number": "",                     # FileInfo
-        "show_name": "",                        # ShowData
+        # "show_name": "",                        # ShowData
         "source": "",                           # NFOData, ShowData
         # "tag_only": "",                         # NFOData
         "thumb_marked": True,                   # FileInfo, ImageData

@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from models.data_models import FileMode
+from models.data_models import FileMode, FinalResult
 
 
 @dataclass
@@ -60,7 +60,7 @@ class _Flags:
     )  # 当前文件夹剧照已下载的标识（如已存在，视为剧照已处理过）
     nfo_deal_set: set[str] = field(default_factory=set)  # 当前文件nfo已处理的标识（如已存在，视为剧照已处理过）
     json_get_set: set[str] = field(default_factory=set)  # 去获取json的番号列表
-    json_data_dic: dict[str, Any] = field(default_factory=dict)  # 获取成功的json
+    json_data_dic: dict[str, FinalResult] = field(default_factory=dict)  # 获取成功的json
     img_path: str = ""
     deepl_result: dict[str, Any] = field(
         default_factory=dict

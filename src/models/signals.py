@@ -10,10 +10,12 @@
 
 import threading
 import time
+from typing import Optional
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from models.base.utils import singleton
+from models.core.json_data import ShowData
 
 
 @singleton
@@ -70,8 +72,8 @@ class Signals(QObject):
     def show_net_info(self, text):
         self.net_info.emit(text)
 
-    def add_label_info(self, json_data):
-        self.set_main_info.emit(json_data)
+    def add_label_info(self, show_data: Optional[ShowData]):
+        self.set_main_info.emit(show_data)
 
     def show_list_name(
         self,

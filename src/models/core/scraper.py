@@ -34,7 +34,7 @@ from models.core.file import (
 )
 from models.core.flags import Flags
 from models.core.image import add_mark, extrafanart_copy2, extrafanart_extras_copy
-from models.core.json_data import FileInfo, JsonData, LogBuffer, new_json_data
+from models.core.json_data import FileInfo, LogBuffer, new_json_data
 from models.core.json_data_handlers import deal_some_field, replace_special_word, replace_word, show_movie_info
 from models.core.nfo import get_nfo_data, write_nfo
 from models.core.translate import translate_actor, translate_info, translate_title_outline
@@ -57,8 +57,8 @@ def _scrape_one_file(
     success_folder: str,
     file_info_tuple: tuple,
     file_mode: FileMode,
-) -> tuple[bool, JsonData]:
-    # 处理单个文件刮削
+) -> tuple[bool, FinalResult]:
+    """处理单个文件刮削"""
     # 初始化所需变量
     start_time = time.time()
     read_mode = config.read_mode
@@ -68,8 +68,6 @@ def _scrape_one_file(
     # 获取文件信息
     file_info, movie_number, folder_old_path, file_name, file_ex, sub_list, _, _ = file_info_tuple
     file_info = cast(FileInfo, file_info)
-    json_data = new_json_data()
-    json_data.update(file_info)  # type: ignore
 
     final_res = FinalResult.new_empty()
     # 检查文件大小
@@ -77,7 +75,7 @@ def _scrape_one_file(
     if not valid:
         final_res.data.outline = outline
         final_res.data.tag = tag
-        return False, json_data
+        return False, final_res
 
     # 读取模式
     file_can_download = True
@@ -203,7 +201,7 @@ def _scrape_one_file(
         poster_final_path,
         thumb_final_path,
         fanart_final_path,
-    ) = get_output_name(json_data, file_path, success_folder, file_ex)
+    ) = get_output_name(file_info, movie_data, file_path, success_folder, file_ex)
 
     # 判断输出文件的路径是否重复
     if config.soft_link == 0:
@@ -588,7 +586,7 @@ def scrape(file_mode: FileMode, movie_list: Optional[list[str]]) -> None:
 
     signal.show_scrape_info("🔎 正在刮削中...")
 
-    signal.add_label_info({})  # 清空主界面显示信息
+    signal.add_label_info(None)  # 清空主界面显示信息
     thread_number = config.thread_number  # 线程数量
     thread_time = config.thread_time  # 线程延时
     signal.label_result.emit(f" 刮削中：{0} 成功：{Flags.succ_count} 失败：{Flags.fail_count}")
