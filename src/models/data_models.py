@@ -1,7 +1,7 @@
 import enum
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict
 
 
 @dataclass
@@ -71,11 +71,47 @@ class MovieData:
     country: str = ""
     javdb_id: str = ""
 
+    @classmethod
+    def new_empty(cls) -> "MovieData":
+        """创建一个新的空的 MovieData"""
+        return cls(
+            number="",
+            title="",
+            originaltitle="",
+            actor="",
+            outline="",
+            originalplot="",
+            tag="",
+            release="",
+            year="",
+            runtime="",
+            score="",
+            series="",
+            director="",
+            studio="",
+            publisher="",
+            source="",
+            website="",
+            cover="",
+            poster="",
+            extrafanart=[],
+            trailer="",
+            actor_photo={},
+            mosaic="",
+            image_download=False,
+            image_cut="",
+            wanted="",
+        )
+
     def update(self, other: "MovieData"):
         """更新数据"""
         if not isinstance(other, MovieData):
             raise TypeError("other must be an instance of MovieData")
         self.__dict__.update(other.__dict__)
+
+    def get(self, key: str, default=None):
+        """获取数据"""
+        return self.__dict__.get(key, default)
 
 
 class Lang(enum.Enum):
@@ -87,12 +123,30 @@ class Lang(enum.Enum):
 @dataclass
 class CrawlerResult:
     site: str
-    data: Optional[MovieData] = None
+    data: MovieData
+    success: bool = True
 
     @classmethod
     def failed(cls, site: str) -> "CrawlerResult":
         """创建失败的爬虫结果"""
-        return cls(site=site)
+        return cls(site=site, success=False, data=MovieData.new_empty())
+
+
+@dataclass
+class FinalResult:
+    data: MovieData
+    metadata: dict
+
+    def update(self, data: "MovieData"):
+        """更新数据"""
+        if not isinstance(data, MovieData):
+            raise TypeError("FinalResult must be updated with MovieData")
+        self.data.update(data)
+
+    @classmethod
+    def new_empty(cls) -> "FinalResult":
+        """创建一个新的空的 FinalResult"""
+        return cls(data=MovieData.new_empty(), metadata={})
 
 
 class FileMode(Enum):
