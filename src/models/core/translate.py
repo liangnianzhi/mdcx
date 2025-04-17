@@ -16,15 +16,16 @@ from models.base.web import get_html, post_html
 from models.config.config import config
 from models.config.resources import resources
 from models.core.flags import Flags
-from models.core.json_data import LogBuffer, TranslateData
+from models.core.json_data import LogBuffer
 from models.core.web import get_actorname_from_avwiki, get_yesjav_title, google_translate
+from models.data_models import Metadata, MovieData
 from models.signals import signal
 
 deepl_result = {}
 REGEX_KANA = re.compile(r"[\u3040-\u30ff]")  # 平假名/片假名
 
 
-def translate_title_outline(json_data: TranslateData, movie_number: str):
+def translate_title_outline(movie_data: MovieData, meta_data: Metadata, movie_number: str):
     title_language = config.title_language
     title_translate = config.title_translate
     outline_language = config.outline_language
@@ -37,14 +38,14 @@ def translate_title_outline(json_data: TranslateData, movie_number: str):
     title_sehua = config.title_sehua
     title_sehua_zh = config.title_sehua_zh
     title_yesjav = config.title_yesjav
-    json_data_title_language = langid.classify(json_data["title"])[0]
+    movie_data_title_language = langid.classify(movie_data.title)[0]
 
     # 处理title
     if title_language != "jp":
         movie_title = ""
 
         # 匹配本地高质量标题(色花标题数据)
-        if title_sehua_zh == "on" or (json_data_title_language == "ja" and title_sehua == "on"):
+        if title_sehua_zh == "on" or (movie_data_title_language == "ja" and title_sehua == "on"):
             start_time = time.time()
             try:
                 movie_title = resources.sehua_title_data.get(movie_number)
@@ -52,32 +53,32 @@ def translate_title_outline(json_data: TranslateData, movie_number: str):
                 signal.show_traceback_log(traceback.format_exc())
                 signal.show_log_text(traceback.format_exc())
             if movie_title:
-                json_data["title"] = movie_title
+                movie_data.title = movie_title
                 LogBuffer.log().write(f"\n 🌸 Sehua title done!({get_used_time(start_time)}s)")
 
         # 匹配网络高质量标题（yesjav， 可在线更新）
-        if not movie_title and title_yesjav == "on" and json_data_title_language == "ja":
+        if not movie_title and title_yesjav == "on" and movie_data_title_language == "ja":
             start_time = time.time()
             movie_title = get_yesjav_title(movie_number)
             if movie_title and langid.classify(movie_title)[0] != "ja":
-                json_data["title"] = movie_title
+                movie_data.title = movie_title
                 LogBuffer.log().write(f"\n 🆈 Yesjav title done!({get_used_time(start_time)}s)")
 
-        # 使用json_data数据
-        if not movie_title and title_translate == "on" and json_data_title_language == "ja":
-            trans_title = json_data["title"]
+        # 使用movie_data数据
+        if not movie_title and title_translate == "on" and movie_data_title_language == "ja":
+            trans_title = movie_data.title
 
     # 处理outline
-    if json_data["outline"] and outline_language != "jp":
-        if outline_translate == "on" and langid.classify(json_data["outline"])[0] == "ja":
-            trans_outline = json_data["outline"]
+    if movie_data.outline and outline_language != "jp":
+        if outline_translate == "on" and langid.classify(movie_data.outline)[0] == "ja":
+            trans_outline = movie_data.outline
 
     # 翻译
     if Flags.translate_by_list:
         if (trans_title and title_translate == "on") or (trans_outline and outline_translate == "on"):
             start_time = time.time()
             translate_by_list = Flags.translate_by_list.copy()
-            if not json_data["cd_part"]:
+            if not meta_data.cd_part:
                 random.shuffle(translate_by_list)
             for each in translate_by_list:
                 if each == "youdao":  # 使用有道翻译
@@ -85,18 +86,18 @@ def translate_title_outline(json_data: TranslateData, movie_number: str):
                 elif each == "google":  # 使用 google 翻译
                     t, o, r = google_translate(trans_title, trans_outline)
                 else:  # 使用deepl翻译
-                    t, o, r = deepl_translate(trans_title, trans_outline, "JA", json_data["file_path"])
+                    t, o, r = deepl_translate(trans_title, trans_outline, "JA", movie_data.file_path)
                 if r:
                     LogBuffer.log().write(
                         f"\n 🔴 Translation failed!({each.capitalize()})({get_used_time(start_time)}s) Error: {r}"
                     )
                 else:
                     if t:
-                        json_data["title"] = t
+                        movie_data.title = t
                     if o:
-                        json_data["outline"] = o
+                        movie_data.outline = o
                     LogBuffer.log().write(f"\n 🍀 Translation done!({each.capitalize()})({get_used_time(start_time)}s)")
-                    json_data["outline_from"] = each
+                    meta_data.outline_from = each
                     break
             else:
                 translate_by = translate_by.strip(",").capitalize()
@@ -106,23 +107,23 @@ def translate_title_outline(json_data: TranslateData, movie_number: str):
 
     # 简繁转换
     if title_language == "zh_cn":
-        json_data["title"] = zhconv.convert(json_data["title"], "zh-cn")
+        movie_data.title = zhconv.convert(movie_data.title, "zh-cn")
     elif title_language == "zh_tw":
-        json_data["title"] = zhconv.convert(json_data["title"], "zh-hant")
-        json_data["mosaic"] = zhconv.convert(json_data["mosaic"], "zh-hant")
+        movie_data.title = zhconv.convert(movie_data.title, "zh-hant")
+        movie_data.mosaic = zhconv.convert(movie_data.mosaic, "zh-hant")
 
     if outline_language == "zh_cn":
-        json_data["outline"] = zhconv.convert(json_data["outline"], "zh-cn")
+        movie_data.outline = zhconv.convert(movie_data.outline, "zh-cn")
     elif outline_language == "zh_tw":
-        json_data["outline"] = zhconv.convert(json_data["outline"], "zh-hant")
+        movie_data.outline = zhconv.convert(movie_data.outline, "zh-hant")
 
-    return json_data
+    return movie_data
 
 
-def translate_info(json_data: TranslateData):
+def translate_info(movie_data: MovieData, meta_data: Metadata):
     xml_info = resources.info_mapping_data
     if len(xml_info) == 0:
-        return json_data
+        return movie_data
     tag_translate = config.tag_translate
     series_translate = config.series_translate
     studio_translate = config.studio_translate
@@ -136,7 +137,7 @@ def translate_info(json_data: TranslateData):
     fields_rule = config.fields_rule
 
     tag_include = config.tag_include
-    tag = json_data["tag"]
+    tag = movie_data.tag
     remove_key = [
         "HD高画质",
         "HD高畫質",
@@ -177,36 +178,36 @@ def translate_info(json_data: TranslateData):
     tag = remove_repeat(tag)
 
     # 添加演员
-    if "actor" in tag_include and json_data["actor"]:
-        tag = json_data["actor"] + "," + tag
+    if "actor" in tag_include and movie_data.actor:
+        tag = movie_data.actor + "," + tag
         tag = tag.strip(",")
 
     # 添加番号前缀
-    letters = json_data["letters"]
+    letters = meta_data.letters
     if "letters" in tag_include and letters and letters != "未知车牌":
         # 去除素人番号前缀数字
         if "del_num" in fields_rule:
-            temp_n = re.findall(r"\d{3,}([a-zA-Z]+-\d+)", json_data["number"])
+            temp_n = re.findall(r"\d{3,}([a-zA-Z]+-\d+)", movie_data.number)
             if temp_n:
                 letters = get_number_letters(temp_n[0])
-                json_data["letters"] = letters
-                json_data["number"] = temp_n[0]
+                meta_data.letters = letters
+                movie_data.number = temp_n[0]
         tag = letters + "," + tag
         tag = tag.strip(",")
 
     # 添加字幕、马赛克信息到tag中
-    has_sub = json_data["has_sub"]
-    mosaic = json_data["mosaic"]
+    has_sub = meta_data.has_sub
+    mosaic = movie_data.mosaic
     if has_sub and "cnword" in tag_include:
         tag += ",中文字幕"
     if mosaic and "mosaic" in tag_include:
         tag += "," + mosaic
 
     # 添加系列、制作、发行信息到tag中
-    series = json_data["series"]
-    studio = json_data["studio"]
-    publisher = json_data["publisher"]
-    director = json_data["director"]
+    series = movie_data.series
+    studio = movie_data.studio
+    publisher = movie_data.publisher
+    director = movie_data.director
     if not studio and publisher:
         studio = publisher
     if not publisher and studio:
@@ -256,19 +257,19 @@ def translate_info(json_data: TranslateData):
     # tag去重/去空/排序
     tag = remove_repeat(tag)
 
-    json_data["tag"] = tag.strip(",")
-    json_data["series"] = series
-    json_data["studio"] = studio
-    json_data["publisher"] = publisher
-    json_data["director"] = director
-    return json_data
+    movie_data.tag = tag.strip(",")
+    movie_data.series = series
+    movie_data.studio = studio
+    movie_data.publisher = publisher
+    movie_data.director = director
+    return movie_data
 
 
-def translate_actor(json_data: TranslateData):
+def translate_actor(movie_data: MovieData):
     # 网络请求真实的演员名字
     actor_realname = config.actor_realname
-    mosaic = json_data["mosaic"]
-    number = json_data["number"]
+    mosaic = movie_data.mosaic
+    number = movie_data.number
 
     # 非读取模式，勾选了使用真实名字时; 读取模式，勾选了允许更新真实名字时
     if actor_realname == "on":
@@ -276,17 +277,17 @@ def translate_actor(json_data: TranslateData):
         if mosaic != "国产" and (
             number.startswith("FC2") or number.startswith("SIRO") or re.search(r"\d{3,}[A-Z]{3,}-", number)
         ):
-            result, temp_actor = get_actorname_from_avwiki(json_data["number"])
+            result, temp_actor = get_actorname_from_avwiki(movie_data.number)
             if result:
-                actor: str = json_data["actor"]
-                all_actor: str = json_data["all_actor"]
+                actor: str = movie_data.actor
+                all_actor: str = movie_data.all_actor
                 actor_list: list = all_actor.split(",")
-                json_data["actor"] = temp_actor
+                movie_data.actor = temp_actor
                 # 从actor_list中循环查找元素是否包含字符串temp_actor，有则替换
                 for item in actor_list:
                     if item.find(actor) != -1:
                         actor_list[actor_list.index(item)] = temp_actor
-                json_data["all_actor"] = ",".join(actor_list)
+                movie_data.all_actor = ",".join(actor_list)
 
                 LogBuffer.log().write(
                     f"\n 👩🏻 Av-wiki done! Actor's real Japanese name is '{temp_actor}' ({get_used_time(start_time)}s)"
@@ -296,19 +297,19 @@ def translate_actor(json_data: TranslateData):
 
     # 如果不映射，返回
     if config.actor_translate == "off":
-        return json_data
+        return movie_data
 
     # 映射表数据加载失败，返回
     xml_actor = resources.actor_mapping_data
     if len(xml_actor) == 0:
-        return json_data
+        return movie_data
 
     # 未知演员，返回
-    actor = json_data["actor"]
+    actor = movie_data.actor
     if "actor_all," in config.nfo_include_new:
-        actor = json_data["all_actor"]
+        actor = movie_data.all_actor
     if actor == config.actor_no_name:
-        return json_data
+        return movie_data
 
     # 查询映射表
     actor_list = actor.split(",")
@@ -328,22 +329,22 @@ def translate_actor(json_data: TranslateData):
                 actor_new_list.append(new_actor)
                 if actor_data.get("href"):
                     actor_href_list.append(actor_data.get("href"))
-    json_data["actor"] = ",".join(actor_new_list)
+    movie_data.actor = ",".join(actor_new_list)
     if "actor_all," in config.nfo_include_new:
-        json_data["all_actor"] = ",".join(actor_new_list)
+        movie_data.all_actor = ",".join(actor_new_list)
 
     # 演员主页
     if actor_href_list:
-        json_data["actor_href"] = actor_href_list[0]
-    elif json_data["actor"]:
-        json_data["actor_href"] = "https://javdb.com/search?f=actor&q=" + urllib.parse.quote(
-            json_data["actor"].split(",")[0]
+        movie_data.actor_href = actor_href_list[0]
+    elif movie_data.actor:
+        movie_data.actor_href = "https://javdb.com/search?f=actor&q=" + urllib.parse.quote(
+            movie_data.actor.split(",")[0]
         )  # url转码，避免乱码
 
-    return json_data
+    return movie_data
 
 
-# 以下不需要 json_data
+# 以下不需要 movie_data
 
 
 def youdao_translate(title: str, outline: str):
@@ -385,7 +386,7 @@ def youdao_translate(title: str, outline: str):
     }
     headers_o = config.headers
     headers.update(headers_o)
-    result, res = post_html(url, data=data, headers=headers, json_data=True)
+    result, res = post_html(url, data=data, headers=headers, movie_data=True)
     if not result:
         return title, outline, f"请求失败！可能是被封了，可尝试更换代理！错误：{res}"
     else:
@@ -465,7 +466,7 @@ def deepl_translate(title: str, outline: str, ls="JA", file_path: str = ""):
     }
 
     if title:
-        result, res = post_html(url, data=params_title, json_data=True)
+        result, res = post_html(url, data=params_title, movie_data=True)
         if not result:
             return title, outline, f"API 接口请求失败！错误：{res}"
         else:
@@ -474,7 +475,7 @@ def deepl_translate(title: str, outline: str, ls="JA", file_path: str = ""):
             else:
                 return title, outline, f"API 接口返回数据异常！返回内容：{res}"
     if outline:
-        result, res = post_html(url, data=params_outline, json_data=True)
+        result, res = post_html(url, data=params_outline, movie_data=True)
         if not result:
             return title, outline, f"API 接口请求失败！错误：{res}"
         else:

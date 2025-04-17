@@ -37,7 +37,10 @@ class EMbyActressInfo:
 
 @dataclass
 class MovieData:
-    """刮削器需返回的影片数据"""
+    """
+    刮削器需返回的影片数据.
+    此类型增减任何字段都需要修改全部刮削器, 因此若非必要不应修改.
+    """
 
     number: str
     title: str
@@ -162,7 +165,7 @@ class Metadata:
     cd_part: str = ""
     destroyed: str = ""
     version: int = 0
-    actor_amazon: list = field(default_factory=list)
+    actor_amazon: list[str] = field(default_factory=list)
     originaltitle_amazon: str = ""
     website_name: str = ""
     fields_info: str = ""
@@ -172,7 +175,7 @@ class Metadata:
     extrafanart_from: str = ""
     trailer_from: str = ""
     amazon_orginaltitle_actor: str = ""
-    cover_list: list = field(default_factory=list)
+    cover_list: list[tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -302,6 +305,61 @@ class FileInfo:
     file_show_path: str = ""
 
 
+@dataclass
+class ImageData:
+    cd_part: str = ""  # #meta
+    cover_size: tuple[int, int] = (0, 0)
+    poster_big: bool = False
+    poster_marked: bool = True
+    thumb_marked: bool = True
+    fanart_marked: bool = True
+    cover_list: list[tuple[str, str]] = field(default_factory=list)  # #meta
+    poster_path: str = ""
+    thumb_path: str = ""
+    fanart_path: str = ""
+    cover: str = ""  # #movie
+    poster: str = ""  # #movie
+    trailer: str = ""  # #movie
+    extrafanart: list[str] = field(default_factory=list)  # #movie
+    cover_from: str = ""  # #meta
+    poster_from: str = ""  # #meta
+    trailer_from: str = ""  # #meta
+    number: str = ""  # #movie
+    letters: str = ""  # #meta
+    image_download: bool = False  # #movie
+    poster_size: tuple[int, int] = (0, 0)
+    mosaic: str = ""  # #movie
+    originaltitle_amazon: str = ""  # #meta
+    actor_amazon: list[str] = field(default_factory=list)  # #meta
+    amazon_orginaltitle_actor: str = ""  # #meta
+
+
+@dataclass
+class InputInfo:
+    release: str  # #movie
+    number: str  # #movie
+    short_number: str  # #meta
+    source: str  # #movie
+    file_path: str  # #meta
+    appoint_number: str  # #meta
+    appoint_url: str  # #meta
+    has_sub: bool  # #meta
+    c_word: str  # #meta
+    leak: str  # #meta
+    wuma: str  # #meta
+    youma: str  # #meta
+    cd_part: str  # #meta
+    destroyed: str  # #meta
+    mosaic: str  # #movie
+    version: int  # #meta
+    actor_amazon: list[str]  # #meta
+    originaltitle_amazon: str  # #meta
+    website_name: str  # #meta
+    title: str  # #movie
+    all_actor: str  # #movie
+    all_actor_photo: dict  # #movie
+
+
 # utils for checking fields info
 
 
@@ -330,5 +388,11 @@ def has_fields(cls, fields: set[str]) -> tuple[bool, set[str]]:
     return len(not_in) == 0, not_in
 
 
-compare_dataclasses(MovieData, ShowData)
-compare_dataclasses(Metadata, FileInfo)
+f = field_names
+F_MovieData = f(MovieData)
+F_ShowData = f(ShowData)
+F_FileInfo = f(FileInfo)
+F_ImageData = f(ImageData)
+F_InputInfo = f(InputInfo)
+
+print(F_MovieData)

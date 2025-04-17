@@ -10,7 +10,7 @@ import langid
 from models.base.number import get_number_letters, is_uncensored
 from models.config.config import config
 from models.core.flags import Flags
-from models.core.json_data import InputInfo, LogBuffer
+from models.core.json_data import LogBuffer
 from models.crawlers import (
     airav,
     airav_cc,
@@ -50,7 +50,7 @@ from models.crawlers import (
     theporndb,
     xcity,
 )
-from models.data_models import CrawlerResult, FileMode, FinalResult, MovieData
+from models.data_models import CrawlerResult, FileMode, FinalResult, InputInfo, MovieData
 
 
 # used by _call_crawlers and _call_specific_crawler
@@ -230,9 +230,9 @@ def _call_crawlers(
             title_language = getattr(config, field_language)
 
         site_res = all_res.get(website, None) or _call_crawler(
-            input_info["appoint_number"],
-            input_info["appoint_url"],
-            input_info["file_path"],
+            input_info.appoint_number,
+            input_info.appoint_url,
+            input_info.file_path,
             website,
             title_language,
             file_number,
@@ -309,9 +309,9 @@ def _call_crawlers(
 
 # used by _crawl
 def _call_specific_crawler(input_info: InputInfo, final_res: FinalResult, website: str) -> FinalResult:
-    file_number = input_info["number"]
-    short_number = input_info["short_number"]
-    mosaic = input_info["mosaic"]
+    file_number = input_info.number
+    short_number = input_info.short_number
+    mosaic = input_info.mosaic
     final_res.metadata.fields_info = ""
 
     title_language = config.title_language
@@ -321,9 +321,9 @@ def _call_specific_crawler(input_info: InputInfo, final_res: FinalResult, websit
     elif website == "mdtv":
         title_language = "zh_cn"
     site_res = _call_crawler(
-        input_info["appoint_number"],
-        input_info["appoint_url"],
-        input_info["file_path"],
+        input_info.appoint_number,
+        input_info.appoint_url,
+        input_info.file_path,
         website,
         title_language,
         file_number,
@@ -334,7 +334,7 @@ def _call_specific_crawler(input_info: InputInfo, final_res: FinalResult, websit
     if not site_res.success:
         return final_res
     final_res.update(site_res.data)
-    if not input_info["title"]:
+    if not input_info.title:
         return final_res
     if site_res.data.cover:
         final_res.metadata.cover_list = [(website, site_res.data.cover)]
@@ -351,10 +351,8 @@ def _call_specific_crawler(input_info: InputInfo, final_res: FinalResult, websit
         final_res.data.number = file_number
 
     final_res.metadata.actor_amazon = list(set(site_res.data.actor.split(",")))
-    final_res.data.all_actor = input_info["all_actor"] if input_info.get("all_actor") else site_res.data.actor
-    final_res.data.all_actor_photo = (
-        input_info["all_actor_photo"] if input_info.get("all_actor_photo") else site_res.data.actor_photo
-    )
+    final_res.data.all_actor = input_info.all_actor or site_res.data.actor
+    final_res.data.all_actor_photo = input_info.all_actor_photo or site_res.data.actor_photo
 
     return final_res
 
@@ -374,7 +372,7 @@ def _deal_each_field(
     按照设置的网站顺序处理字段
     """
     if config.scrape_like == "speed":
-        website_list = [input_info["source"]]
+        website_list = [input_info.source]
 
     elif "official" in config.website_set:
         if all_json_data["official"].data.title:
@@ -432,8 +430,8 @@ def _deal_each_field(
             elif field_name == "outline":
                 final_res.metadata.outline_from = website
             elif field_name == "actor":
-                final_res.data.all_actor = input_info.get("all_actor") or web_data_json.actor
-                final_res.data.all_actor_photo = input_info.get("all_actor_photo") or web_data_json.actor_photo
+                final_res.data.all_actor = input_info.all_actor or web_data_json.actor
+                final_res.data.all_actor_photo = input_info.all_actor_photo or web_data_json.actor_photo
             elif field_name == "originaltitle":
                 if web_data_json.actor:
                     final_res.metadata.amazon_orginaltitle_actor = web_data_json.actor.split(",")[0]
@@ -461,8 +459,8 @@ def _crawl_websites(
     """
     获取一组网站的数据：按照设置的网站组，请求各字段数据，并返回最终的数据
     """
-    file_number = input_info["number"]
-    short_number = input_info["short_number"]
+    file_number = input_info.number
+    short_number = input_info.short_number
     scrape_like = config.scrape_like
     none_fields = config.none_fields  # 不刮削的字段
 
@@ -590,9 +588,9 @@ def _crawl_websites(
             config,
             file_number,
             short_number,
-            input_info["mosaic"],
+            input_info.mosaic,
         )
-        if field_name == "title" and not input_info["title"]:
+        if field_name == "title" and not input_info.title:
             return final_res
 
     # 处理字段字段：从已请求的网站中，按字段网站优先级取值
@@ -683,7 +681,7 @@ def _crawl_websites(
         ("trailer", "预告片", "title_language", trailer_website_new_list),
         ("wanted", "想看人数", "title_language", wanted_website_list),
     ]
-    if not wanted_website_new_list or (scrape_like == "speed" and input_info["source"] not in wanted_website_new_list):
+    if not wanted_website_new_list or (scrape_like == "speed" and input_info.source not in wanted_website_new_list):
         deal_field_list.pop()
 
     for field_name, field_cnname, field_language, website_list in deal_field_list:
@@ -725,7 +723,7 @@ def _crawl_websites(
     final_res.metadata.actor_amazon = actor_amazon
 
     # 处理 year
-    release = input_info["release"]
+    release = input_info.release
     if release and (r := re.search(r"\d{4}", release)):
         final_res.data.year = r.group()
 
@@ -743,21 +741,21 @@ def _crawl_websites(
 
 # used by crawl
 def _crawl(input_info: InputInfo, website_name: str) -> FinalResult:
-    file_number = input_info["number"]
-    file_path = input_info["file_path"]
-    short_number = input_info["short_number"]
-    appoint_number = input_info["appoint_number"]
-    appoint_url = input_info["appoint_url"]
-    has_sub = input_info["has_sub"]
-    c_word = input_info["c_word"]
-    leak = input_info["leak"]
-    wuma = input_info["wuma"]
-    youma = input_info["youma"]
-    cd_part = input_info["cd_part"]
-    destroyed = input_info["destroyed"]
-    mosaic = input_info["mosaic"]
-    version = input_info["version"]
-    number = input_info["number"]
+    file_number = input_info.number
+    file_path = input_info.file_path
+    short_number = input_info.short_number
+    appoint_number = input_info.appoint_number
+    appoint_url = input_info.appoint_url
+    has_sub = input_info.has_sub
+    c_word = input_info.c_word
+    leak = input_info.leak
+    wuma = input_info.wuma
+    youma = input_info.youma
+    cd_part = input_info.cd_part
+    destroyed = input_info.destroyed
+    mosaic = input_info.mosaic
+    version = input_info.version
+    number = input_info.number
     if appoint_number:
         number = appoint_number
     final_res = FinalResult.new_empty()
@@ -851,23 +849,23 @@ def _crawl(input_info: InputInfo, website_name: str) -> FinalResult:
         final_res.data.mosaic = "有码"
     elif mosaic:
         final_res.data.mosaic = mosaic
-    if not input_info.get("mosaic"):
+    if not input_info.mosaic:
         if is_uncensored(number):
             final_res.data.mosaic = "无码"
         else:
             final_res.data.mosaic = "有码"
-    print(number, cd_part, input_info["mosaic"], LogBuffer.req().get().strip("-> "))
+    print(number, cd_part, input_info.mosaic, LogBuffer.req().get().strip("-> "))
 
     # 车牌字母
     letters = get_number_letters(number)
 
     # 原标题，用于amazon搜索
-    originaltitle = input_info.get("originaltitle") or ""
+    originaltitle = input_info.originaltitle
     final_res.metadata.originaltitle_amazon = originaltitle
-    for each in input_info["actor_amazon"]:  # 去除演员名，避免搜索不到
+    for each in input_info.actor_amazon:  # 去除演员名，避免搜索不到
         try:
             end_actor = re.compile(rf" {each}$")
-            final_res.metadata.originaltitle_amazon = re.sub(end_actor, "", input_info["originaltitle_amazon"])
+            final_res.metadata.originaltitle_amazon = re.sub(end_actor, "", input_info.originaltitle_amazon)
         except:
             pass
 
@@ -989,7 +987,7 @@ def _get_website_name(j_website_name: str, file_mode: FileMode) -> str:
 
 
 def crawl(input_info: InputInfo, file_mode: FileMode) -> FinalResult:
-    website_name = _get_website_name(input_info["website_name"], file_mode)
+    website_name = _get_website_name(input_info.website_name, file_mode)
     final_res = _crawl(input_info, website_name)
     final_res.data = _post_process(final_res.data)
     return final_res
