@@ -15,7 +15,7 @@ from typing import Optional
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from models.base.utils import singleton
-from models.core.json_data import ShowData
+from models.data_models import ShowData
 
 
 @singleton

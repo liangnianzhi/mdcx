@@ -43,14 +43,14 @@ from models.core.file import (
 )
 from models.core.flags import Flags
 from models.core.image import add_del_extrafanart_copy
-from models.core.json_data import LogBuffer, ShowData
+from models.core.json_data import LogBuffer
 from models.core.nfo import write_nfo
 from models.core.scraper import again_search, get_remain_list, start_new_scrape
 from models.core.subtitle import add_sub_for_all_video
 from models.core.utils import deal_url, get_movie_path_setting
 from models.core.video import add_del_extras, add_del_theme_videos
 from models.core.web import get_html, show_netstatus
-from models.data_models import FileMode
+from models.data_models import FileMode, ShowData
 from models.signals import signal
 from models.tools.actress_db import ActressDB
 from models.tools.emby_actor_image import update_emby_actor_photo

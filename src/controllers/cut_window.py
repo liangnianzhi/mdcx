@@ -13,7 +13,7 @@ import models.core.file
 import models.core.image
 from models.base.file import delete_file, split_path
 from models.config.config import config
-from models.core.json_data import ShowData
+from models.data_models import ShowData
 from views.posterCutTool import Ui_Dialog_cut_poster
 
 if typing.TYPE_CHECKING:

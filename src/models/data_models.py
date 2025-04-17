@@ -1,7 +1,6 @@
 import enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Dict
 
 
 @dataclass
@@ -61,7 +60,7 @@ class MovieData:
     poster: str
     extrafanart: list[str]
     trailer: str
-    actor_photo: Dict[str, str]  # = field(default_factory=dict)
+    actor_photo: dict[str, str]  # = field(default_factory=dict)
     mosaic: str
     image_download: bool  # = False
     image_cut: str  # = "right"
@@ -69,7 +68,7 @@ class MovieData:
 
     # 可选字段
     all_actor: str = ""
-    all_actor_photo: Dict[str, str] = field(default_factory=dict)
+    all_actor_photo: dict[str, str] = field(default_factory=dict)
     country: str = ""
     javdb_id: str = ""
 
@@ -201,3 +200,135 @@ class FileMode(Enum):
     Default = 0
     Single = 1
     Again = 2
+
+
+@dataclass
+class ShowData:
+    file_path: str = ""  # #meta
+    number: str = ""  # #movie
+    actor: str = ""  # #movie
+    all_actor: str = ""  # #movie
+    source: str = ""  # #movie
+    website: str = ""  # #movie
+    title: str = ""  # #movie
+    outline: str = ""  # #movie
+    tag: str = ""  # #movie
+    release: str = ""  # #movie
+    year: str = ""  # #movie
+    runtime: str = ""  # #movie
+    director: str = ""  # #movie
+    series: str = ""  # #movie
+    studio: str = ""  # #movie
+    publisher: str = ""  # #movie
+    poster_path: str = ""
+    thumb_path: str = ""
+    fanart_path: str = ""
+    has_sub: bool = False  # #meta
+    c_word: str = ""  # #meta
+    leak: str = ""  # #meta
+    cd_part: str = ""  # #meta
+    mosaic: str = ""  # #movie
+    destroyed: str = ""  # #meta
+    actor_href: str = ""
+    definition: str = ""
+    cover_from: str = ""  # #meta
+    poster_from: str = ""  # #meta
+    extrafanart_from: str = ""  # #meta
+    trailer_from: str = ""  # #meta
+    show_name: str = ""
+    img_path: str = ""
+    country: str = ""  # #movie
+
+    # used in _show_nfo_info
+    originaltitle: str = ""  # #movie
+    cover: str = ""  # #movie
+    poster: str = ""  # #movie
+    trailer: str = ""  # #movie
+    originalplot: str = ""  # #movie
+    wanted: str = ""  # #movie
+    score: str = ""  # #movie
+
+    # compatible with NFOData
+    javdbid: str = ""
+    letters: str = ""  # #meta
+    outline_from: str = ""  # #meta
+    tag_only: str = ""
+    cover_list: list[tuple[str, str]] = field(default_factory=list)  # #meta
+    actor_amazon: list[str] = field(default_factory=list)  # #meta
+    originaltitle_amazon: str = ""  # #meta
+    nfo_can_translate: bool = False  # todo remove this
+
+
+@dataclass
+class FileInfo:
+    number: str = ""  # #movie
+    letters: str = ""  # #meta
+    has_sub: bool = False  # #meta
+    c_word: str = ""  # #meta
+    cd_part: str = ""  # #meta
+    destroyed: str = ""  # #meta
+    leak: str = ""  # #meta
+    wuma: str = ""  # #meta
+    youma: str = ""  # #meta
+    mosaic: str = ""  # #movie
+    tag: str = ""  # #movie
+    all_actor: str = ""  # #movie
+    file_path: str = ""  # #meta
+    appoint_number: str = ""  # #meta
+    appoint_url: str = ""  # #meta
+    website_name: str = ""  # #meta
+    short_number: str = ""  # #meta
+    title: str = ""  # #movie
+    _4K: str = ""
+    actor_href: str = ""
+    definition: str = ""
+    version: int = 0  # #meta
+    poster_marked: bool = True
+    thumb_marked: bool = True
+    fanart_marked: bool = True
+    poster_path: str = ""
+    thumb_path: str = ""
+    fanart_path: str = ""
+    dont_move_movie: bool = False
+    del_file_path: bool = False
+
+    # 精简 get_file_info return value
+    # movie_number = number
+    folder_path: str = ""
+    file_name_no_ext: str = ""
+    file_ext: str = ""
+    sub_list: list[str] = field(default_factory=list)
+    file_show_name: str = ""
+    file_show_path: str = ""
+
+
+# utils for checking fields info
+
+
+def field_names(cls) -> set[str]:
+    """获取类的所有字段名称"""
+    return set(f.name for f in fields(cls))
+
+
+def _format_fields(s: set[str], sep: str = " | ", asc: bool = True) -> str:
+    return sep.join(sorted(s, reverse=not asc))
+
+
+def compare_dataclasses(cls1, cls2):
+    fields1 = field_names(cls1)
+    fields2 = field_names(cls2)
+    print(f"{'=' * 15} {cls1.__name__} vs {cls2.__name__} {'=' * 15}")
+    print(f"In {cls1.__name__} but not in {cls2.__name__}:\n {_format_fields(fields1 - fields2)}\n")
+    print(f"In {cls2.__name__} but not in {cls1.__name__}:\n {_format_fields(fields2 - fields1)}\n")
+    print(f"Same fields:\n {_format_fields(fields1 & fields2)}\n")
+
+
+def has_fields(cls, fields: set[str]) -> tuple[bool, set[str]]:
+    """检查 dataclass 是否包含指定字段"""
+    cls_fields = field_names(cls)
+    not_in = fields - cls_fields
+    return len(not_in) == 0, not_in
+
+
+compare_dataclasses(MovieData, ShowData)
+compare_dataclasses(Metadata, FileInfo)

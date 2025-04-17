@@ -1,6 +1,5 @@
 import threading
-from dataclasses import dataclass, field
-from typing import List, Tuple, TypedDict
+from typing import TypedDict
 
 
 class LogBuffer:
@@ -113,107 +112,6 @@ class TranslateData(TypedDict):  # 17
     # director: str  # #movie
     # outline_from: str  # #meta
     actor_href: str
-
-
-# 主界面展示使用的字段
-@dataclass
-class ShowData:
-    file_path: str = ""  # #meta
-    number: str = ""  # #movie
-    actor: str = ""  # #movie
-    all_actor: str = ""  # #movie
-    source: str = ""  # #movie
-    website: str = ""  # #movie
-    title: str = ""  # #movie
-    outline: str = ""  # #movie
-    tag: str = ""  # #movie
-    release: str = ""  # #movie
-    year: str = ""  # #movie
-    runtime: str = ""  # #movie
-    director: str = ""  # #movie
-    series: str = ""  # #movie
-    studio: str = ""  # #movie
-    publisher: str = ""  # #movie
-    poster_path: str = ""
-    thumb_path: str = ""
-    fanart_path: str = ""
-    has_sub: bool = False  # #meta
-    c_word: str = ""  # #meta
-    leak: str = ""  # #meta
-    cd_part: str = ""  # #meta
-    mosaic: str = ""  # #movie
-    destroyed: str = ""  # #meta
-    actor_href: str = ""
-    definition: str = ""
-    cover_from: str = ""  # #meta
-    poster_from: str = ""  # #meta
-    extrafanart_from: str = ""  # #meta
-    trailer_from: str = ""  # #meta
-    show_name: str = ""
-    img_path: str = ""
-    country: str = ""  # #movie
-
-    # used in _show_nfo_info
-    originaltitle: str = ""  # #movie
-    cover: str = ""  # #movie
-    poster: str = ""  # #movie
-    trailer: str = ""  # #movie
-    originalplot: str = ""  # #movie
-    wanted: str = ""  # #movie
-    score: str = ""  # #movie
-
-    # compatible with NFOData
-    javdbid: str = ""
-    letters: str = ""  # #meta
-    outline_from: str = ""  # #meta
-    tag_only: str = ""
-    cover_list: List[Tuple[str, str]] = field(default_factory=list)  # #meta
-    actor_amazon: List[str] = field(default_factory=list)  # #meta
-    originaltitle_amazon: str = ""  # #meta
-    nfo_can_translate: bool = False  # todo remove this
-
-
-@dataclass
-class FileInfo:
-    number: str = ""  # #movie
-    letters: str = ""  # #meta
-    has_sub: bool = False  # #meta
-    c_word: str = ""  # #meta
-    cd_part: str = ""  # #meta
-    destroyed: str = ""  # #meta
-    leak: str = ""  # #meta
-    wuma: str = ""  # #meta
-    youma: str = ""  # #meta
-    mosaic: str = ""  # #movie
-    tag: str = ""  # #movie
-    all_actor: str = ""  # #movie
-    file_path: str = ""  # #meta
-    appoint_number: str = ""  # #meta
-    appoint_url: str = ""  # #meta
-    website_name: str = ""  # #meta
-    short_number: str = ""  # #meta
-    title: str = ""  # #movie
-    _4K: str = ""
-    actor_href: str = ""
-    definition: str = ""
-    version: int = 0  # #meta
-    poster_marked: bool = True
-    thumb_marked: bool = True
-    fanart_marked: bool = True
-    poster_path: str = ""
-    thumb_path: str = ""
-    fanart_path: str = ""
-    dont_move_movie: bool = False
-    del_file_path: bool = False
-
-    # 精简 get_file_info return value
-    # movie_number = number
-    folder_path: str = ""
-    file_name_no_ext: str = ""
-    file_ext: str = ""
-    sub_list: list[str] = field(default_factory=list)
-    file_show_name: str = ""
-    file_show_path: str = ""
 
 
 # get_output_name/_get_folder_path/_generate_file_name 使用的字段

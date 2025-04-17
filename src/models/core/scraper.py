@@ -34,7 +34,7 @@ from models.core.file import (
 )
 from models.core.flags import Flags
 from models.core.image import add_mark, extrafanart_copy2, extrafanart_extras_copy
-from models.core.json_data import FileInfo, LogBuffer
+from models.core.json_data import LogBuffer
 from models.core.json_data_handlers import deal_some_field, replace_special_word, replace_word, show_movie_info
 from models.core.nfo import get_nfo_data, write_nfo
 from models.core.translate import translate_actor, translate_info, translate_title_outline
@@ -44,7 +44,7 @@ from models.core.utils import (
     show_data_result,
 )
 from models.core.web import extrafanart_download, fanart_download, poster_download, thumb_download, trailer_download
-from models.data_models import FileMode, FinalResult
+from models.data_models import FileInfo, FileMode, FinalResult
 from models.signals import signal
 from models.tools.emby_actor_image import update_emby_actor_photo
 from models.tools.emby_actor_info import creat_kodi_actors
